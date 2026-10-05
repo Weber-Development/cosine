@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm typecheck
+      # The model test downloads Xenova/all-MiniLM-L6-v2 once and keeps it in the cache.
+      - uses: actions/cache@v4
+        with:
+          path: node_modules/.pnpm/@huggingface+transformers*/node_modules/@huggingface/transformers/.cache
+          key: hf-models-all-MiniLM-L6-v2
+      - run: pnpm test
+        env:
+          COSINE_E2E: "1"
+      - run: pnpm check:packages

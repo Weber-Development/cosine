@@ -17,6 +17,10 @@
     {
       "label": "Reference",
       "items": ["reference/cli", "reference/api"]
+    },
+    {
+      "label": "Cosine Pro",
+      "items": ["pro/overview", "pro/vite", "pro/insights"]
     }
   ]
 }

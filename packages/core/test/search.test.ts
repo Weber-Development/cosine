@@ -57,6 +57,19 @@ describe("Cosine", () => {
     expect(embedder.calls).toBeGreaterThan(calls);
   });
 
+  it("searches only the given scope", async () => {
+    const { cosine } = await engine();
+    const all = cosine.searchLexical("team invoices", { limit: 20 });
+    expect(all.some((r) => r.chunk.url.startsWith("/docs/guides/"))).toBe(true);
+    const billing = cosine.searchLexical("team invoices", { scope: "/docs/guides/billing" });
+    expect(billing.length).toBeGreaterThan(0);
+    expect(billing.every((r) => r.chunk.url.startsWith("/docs/guides/billing"))).toBe(true);
+    expect(cosine.searchLexical("invoices", { scope: "/docs/nowhere" })).toEqual([]);
+    await cosine.warmup();
+    const hybrid = await cosine.search("coworker rights", { scope: ["/docs/"] });
+    expect(hybrid.every((r) => r.chunk.url.startsWith("/docs/"))).toBe(true);
+  });
+
   it("finds pages by meaning once the model is ready", async () => {
     const { cosine } = await engine();
     expect(cosine.searchLexical("erase app")).toEqual([]);

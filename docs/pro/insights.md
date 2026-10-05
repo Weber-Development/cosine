@@ -40,7 +40,7 @@ The report lists:
 - **Results nobody opened:** the search found something, but it did not look like the answer.
 - **Most searched** queries and **most opened** pages, the click rate and the mean rank of opened results.
 
-`--out insights.md` writes Markdown, e.g. for a monthly issue. From code: `analyze(events)`, `renderMarkdown(report)`, `renderHtml(report)`.
+`--out insights.md` writes Markdown, e.g. for a monthly issue. `--out insights.csv` (or `--format csv`) writes the query lists as one table for a spreadsheet or your ticket system, with the columns `list` (`no-results`, `no-clicks`, `top`), `query`, `searches`, `clicks` and `results`. From code: `analyze(events)`, `renderMarkdown(report)`, `renderHtml(report)`, `renderCsv(report)`.
 
 ## Privacy
 

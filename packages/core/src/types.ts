@@ -72,6 +72,11 @@ export interface SearchOptions {
   mode?: SearchMode;
   /** Return at most one result per page. Default false. */
   groupByPage?: boolean;
+  /**
+   * Only return results whose URL starts with one of these paths, e.g. `/docs/api`. A full URL
+   * is compared by its path. Default: the whole index.
+   */
+  scope?: string | string[];
 }
 
 export interface SearchResult {

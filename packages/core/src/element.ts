@@ -54,7 +54,8 @@ export interface CosineResultsDetail {
  *
  * Attributes: `index` (URL of `cosine-index.json`), `lang` (`en`, `de`, `fr`, `it`), `limit`,
  * `placeholder`, `shortcut` (`/` or `mod+k`, default `/`), `mode` (`hybrid`, `lexical`),
- * `load-model` (`lazy`, `eager`, `never`). Styling via `--cosine-*` custom properties and `::part`.
+ * `load-model` (`lazy`, `eager`, `never`), `scope` (space-separated URL paths, e.g. `/docs/api`, to
+ * search only part of the site). Styling via `--cosine-*` custom properties and `::part`.
  * Fires `cosine-results` with `{ query, results }` after each search, and `cosine-select` with the
  * chosen result (plus `query` and `rank`) before navigating; call `preventDefault()` on it to
  * handle navigation yourself.
@@ -194,10 +195,11 @@ export class CosineSearchElement extends HTMLElement {
     const engine = await this.ensure();
     const limit = Number(this.getAttribute("limit") ?? 8);
     const mode = this.getAttribute("mode") === "lexical" ? "lexical" : "hybrid";
+    const scope = this.getAttribute("scope")?.split(/\s+/).filter(Boolean);
     // Lexical results right away, then the hybrid ranking when it differs.
-    if (seq === this.seq) this.render(engine.searchLexical(query, { limit }), query);
+    if (seq === this.seq) this.render(engine.searchLexical(query, { limit, scope }), query);
     if (mode === "lexical" || engine.status !== "ready") return;
-    const results = await engine.search(query, { limit, mode });
+    const results = await engine.search(query, { limit, mode, scope });
     if (seq === this.seq) this.render(results, query);
   }
 

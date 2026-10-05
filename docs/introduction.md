@@ -10,6 +10,7 @@ Cosine closes that gap without a server:
 - **Index at build time.** `cosine build` splits your Markdown, MDX or built HTML into sections and stores a small vector for each section next to your site, e.g. in `public/cosine/`.
 - **Search in the browser.** The visitor's browser compares the query with these vectors (cosine similarity, hence the name). The model runs locally through [transformers.js](https://huggingface.co/docs/transformers.js).
 - **Instant first, smart second.** Keyword results show up on the first keystroke. The model (about 23 MB, cached by the browser) loads in the background when the search field gets focus, and the ranking improves as soon as it is ready. Visitors with "save data" turned on keep keyword search.
+- **Typo-tolerant.** A word that is not in the index also finds close spellings, so `instalation` still finds the installation guide, even before the model has loaded.
 - **Hybrid ranking.** Keyword and semantic results are combined with reciprocal rank fusion, so exact API names still win where they should.
 - **Accessible search field.** `<cosine-search>` is an ARIA combobox that works with keyboard and screen readers, in English, German, French and Italian. React hooks are available too.
 

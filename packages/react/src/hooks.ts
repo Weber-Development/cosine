@@ -72,7 +72,9 @@ export function useCosineSearch(
   const [results, setResults] = useState<SearchResult[]>([]);
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<SearchStatus | null>(cosine?.status ?? null);
-  const { limit, mode, groupByPage } = options;
+  const { limit, mode, groupByPage, scope } = options;
+  // A stable key so an inline array does not re-run the search on every render.
+  const scopeKey = Array.isArray(scope) ? scope.join("\n") : (scope ?? "");
 
   useEffect(() => {
     if (!cosine) return;
@@ -88,7 +90,12 @@ export function useCosineSearch(
       return;
     }
     let current = true;
-    const opts: SearchOptions = { limit, mode, groupByPage };
+    const opts: SearchOptions = {
+      limit,
+      mode,
+      groupByPage,
+      scope: scopeKey ? scopeKey.split("\n") : undefined,
+    };
     if (mode !== "semantic") setResults(cosine.searchLexical(query, opts));
     if (mode === "lexical" || (mode !== "semantic" && cosine.status !== "ready")) {
       // Starts loading the model in the background for the next keystroke.
@@ -105,7 +112,7 @@ export function useCosineSearch(
     return () => {
       current = false;
     };
-  }, [cosine, query, limit, mode, groupByPage, status]);
+  }, [cosine, query, limit, mode, groupByPage, scopeKey, status]);
 
   return { results, pending };
 }

@@ -1,0 +1,46 @@
+name: Demo index
+
+# Builds the search index for the live demo on packages.sweber.dev/cosine/demo from the
+# Cosine and Surjection docs and commits it to the branch demo-index-output.
+on:
+  push:
+    branches: [demo-index]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @sweberdev/cosine build
+      - name: Collect docs
+        run: |
+          git clone --depth 1 https://github.com/Weber-Development/surjection /tmp/surjection
+          mkdir -p /tmp/corpus/cosine/docs /tmp/corpus/surjection/docs
+          cp -r docs/. /tmp/corpus/cosine/docs/
+          cp -r /tmp/surjection/docs/. /tmp/corpus/surjection/docs/
+          find /tmp/corpus -name nav.json -delete
+      - name: Build index
+        run: |
+          node packages/core/dist/bin.js build /tmp/corpus --out /tmp/out --base-url / | tee /tmp/out.log
+          node packages/core/dist/bin.js search /tmp/out "how do I get rid of old findings" --limit 3
+          node packages/core/dist/bin.js search /tmp/out "keep queries private" --limit 3
+      - name: Commit to demo-index-output
+        run: |
+          cd /tmp/out
+          git init -q -b demo-index-output
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          cp /tmp/out.log build.log
+          git add -A
+          git commit -qm "Demo index from ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" demo-index-output

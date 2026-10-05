@@ -312,8 +312,13 @@ export class CosineSearchElement extends HTMLElement {
   }
 
   private select(result: SearchResult, e: Event) {
+    const detail: CosineSelectDetail = {
+      ...result,
+      query: this.query,
+      rank: this.results.indexOf(result) + 1,
+    };
     const event = new CustomEvent("cosine-select", {
-      detail: result,
+      detail,
       cancelable: true,
       bubbles: true,
       composed: true,

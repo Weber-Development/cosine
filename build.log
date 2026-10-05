@@ -1,0 +1,3 @@
+Indexed 25 pages as 84 chunks in 3.1 s with Xenova/all-MiniLM-L6-v2 (32 KB vectors)
+  /tmp/out/cosine-index.json
+  /tmp/out/cosine-vectors.bin

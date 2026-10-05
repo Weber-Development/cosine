@@ -1,0 +1,22 @@
+{
+  "sections": [
+    {
+      "label": "Start",
+      "items": ["introduction", "getting-started"]
+    },
+    {
+      "label": "Guides",
+      "items": [
+        "guides/indexing",
+        "guides/models",
+        "guides/web-component",
+        "guides/react",
+        "guides/privacy"
+      ]
+    },
+    {
+      "label": "Reference",
+      "items": ["reference/cli", "reference/api"]
+    }
+  ]
+}

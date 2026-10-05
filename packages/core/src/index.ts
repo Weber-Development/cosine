@@ -1,0 +1,15 @@
+export type { BuildOptions, BuiltIndex } from "./build";
+export { buildIndex, passageText } from "./build";
+export type { ChunkOptions } from "./chunk";
+export { chunkMarkdown, htmlToMarkdown, parseFrontMatter, slugify } from "./chunk";
+export type { TransformersEmbedderOptions } from "./embedder";
+export { DEFAULT_MODEL, MODELS, transformersEmbedder } from "./embedder";
+export { LexicalIndex } from "./lexical";
+export type { CosineOptions, LoadIndexOptions } from "./search";
+export { Cosine, fuse, loadIndex, siblingUrl } from "./search";
+export { highlightParts, makeSnippet } from "./snippet";
+export type { SearchTexts } from "./texts";
+export { TEXTS, textsFor } from "./texts";
+export { normalize, tokenize } from "./tokenize";
+export type * from "./types";
+export { cosineSimilarity, normalizeVector, VectorStore } from "./vectors";

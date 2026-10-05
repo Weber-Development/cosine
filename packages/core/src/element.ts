@@ -32,6 +32,20 @@ mark { background: none; color: var(--_accent); font-weight: 600; }
 
 let counter = 0;
 
+/** `detail` of the `cosine-select` event. */
+export interface CosineSelectDetail extends SearchResult {
+  /** The query that produced the result. */
+  query: string;
+  /** Position in the list, starting at 1. */
+  rank: number;
+}
+
+/** `detail` of the `cosine-results` event. */
+export interface CosineResultsDetail {
+  query: string;
+  results: SearchResult[];
+}
+
 /**
  * `<cosine-search index="/cosine/cosine-index.json">`: an accessible search field (ARIA combobox)
  * with results while typing.
@@ -39,7 +53,9 @@ let counter = 0;
  * Attributes: `index` (URL of `cosine-index.json`), `lang` (`en`, `de`, `fr`, `it`), `limit`,
  * `placeholder`, `shortcut` (`/` or `mod+k`, default `/`), `mode` (`hybrid`, `lexical`),
  * `load-model` (`lazy`, `eager`, `never`). Styling via `--cosine-*` custom properties and `::part`.
- * Fires `cosine-select` with the result before navigating; call `preventDefault()` to handle it yourself.
+ * Fires `cosine-results` with `{ query, results }` after each search, and `cosine-select` with the
+ * chosen result (plus `query` and `rank`) before navigating; call `preventDefault()` on it to
+ * handle navigation yourself.
  */
 export class CosineSearchElement extends HTMLElement {
   static observedAttributes = ["index", "lang", "placeholder"];
@@ -47,6 +63,7 @@ export class CosineSearchElement extends HTMLElement {
   private engine: Cosine | null = null;
   private loading: Promise<Cosine> | null = null;
   private results: SearchResult[] = [];
+  private query = "";
   private active = -1;
   private seq = 0;
   private readonly uid = `cosine-${++counter}`;
@@ -184,6 +201,7 @@ export class CosineSearchElement extends HTMLElement {
 
   private render(results: SearchResult[], query = "") {
     this.results = results;
+    this.query = query;
     this.active = -1;
     this.input.removeAttribute("aria-activedescendant");
     this.list.replaceChildren();
@@ -228,6 +246,13 @@ export class CosineSearchElement extends HTMLElement {
       this.list.append(li);
     });
     this.open(true);
+    this.dispatchEvent(
+      new CustomEvent("cosine-results", {
+        detail: { query, results },
+        bubbles: true,
+        composed: true,
+      }),
+    );
     this.live.textContent = results.length
       ? this.texts.results.replace("{count}", String(results.length))
       : this.texts.noResults;
@@ -311,5 +336,9 @@ export function defineCosineSearch(tag = "cosine-search"): void {
 declare global {
   interface HTMLElementTagNameMap {
     "cosine-search": CosineSearchElement;
+  }
+  interface HTMLElementEventMap {
+    "cosine-results": CustomEvent<CosineResultsDetail>;
+    "cosine-select": CustomEvent<CosineSelectDetail>;
   }
 }

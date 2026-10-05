@@ -10,8 +10,10 @@ const STYLE = `
   --_muted: var(--cosine-muted, color-mix(in srgb, currentColor 65%, transparent)); }
 .field { position: relative; }
 input { box-sizing: border-box; width: 100%; font: inherit; color: inherit; background: var(--_bg);
-  border: 1px solid var(--_border); border-radius: var(--cosine-radius, 8px); padding: .6em .8em; }
+  border: 1px solid var(--_border); border-radius: var(--cosine-radius, 8px); padding: .6em 2.6em .6em .8em; }
 input:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
+.field:focus-within kbd { display: none; }
+input::-webkit-search-cancel-button { cursor: pointer; }
 kbd { position: absolute; right: .6em; top: 50%; transform: translateY(-50%); font: inherit; font-size: .75em;
   color: var(--_muted); border: 1px solid var(--_border); border-radius: 4px; padding: 0 .35em; pointer-events: none; }
 [role="listbox"] { position: absolute; z-index: var(--cosine-z, 50); left: 0; right: 0; margin: .3em 0 0; padding: .3em;

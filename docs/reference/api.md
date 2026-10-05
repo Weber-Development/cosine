@@ -20,7 +20,7 @@ Loads `cosine-index.json` and the vector file next to it and returns a `Cosine` 
 
 | Member | |
 |---|---|
-| `search(query, options?)` | `Promise<SearchResult[]>`. `mode`: `hybrid` (default; keyword results until the model is ready, does not wait), `lexical`, `semantic` (waits for the model). `limit` (8), `groupByPage` (false) |
+| `search(query, options?)` | `Promise<SearchResult[]>`. `mode`: `hybrid` (default; keyword results until the model is ready, does not wait), `lexical`, `semantic` (waits for the model). `limit` (8), `groupByPage` (false), `scope` (URL paths to search in, a string or an array) |
 | `searchLexical(query, options?)` | Synchronous keyword search |
 | `warmup()` | Loads the model. Never rejects; on failure `status` becomes `model-failed` |
 | `status` | `lexical`, `loading-model`, `ready`, `model-failed` |

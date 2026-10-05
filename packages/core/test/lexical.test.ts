@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { LexicalIndex } from "../src/lexical";
-import { fuse, siblingUrl } from "../src/search";
+import { editDistance, LexicalIndex } from "../src/lexical";
+import { fuse, scopeFilter, siblingUrl } from "../src/search";
 import { makeSnippet } from "../src/snippet";
 import { normalize, tokenize } from "../src/tokenize";
 import { cosineSimilarity, VectorStore } from "../src/vectors";
@@ -32,7 +32,39 @@ describe("LexicalIndex", () => {
 
   it("matches the last word as a prefix while typing", () => {
     expect(index.search("instal").map((h) => h.id)).toEqual([0]);
-    expect(index.search("instal ")).toEqual([]);
+    // A finished word is not a prefix, but still a close spelling of "install".
+    expect(index.search("instal ").map((h) => h.id)).toEqual([0]);
+  });
+
+  it("tolerates typos in words that are not in the index", () => {
+    expect(index.search("invoces")[0]?.id).toBe(2);
+    expect(index.search("biling")[0]?.id).toBe(2);
+    expect(index.search("pakcage")[0]?.id).toBe(0);
+    // Words shorter than four letters are never guessed.
+    expect(index.search("bil ")).toEqual([]);
+  });
+});
+
+describe("editDistance", () => {
+  it("counts edits and swapped neighbours", () => {
+    expect(editDistance("invoice", "invoice")).toBe(0);
+    expect(editDistance("invoce", "invoice")).toBe(1);
+    expect(editDistance("pakcage", "package")).toBe(1);
+    expect(editDistance("kitten", "sitting")).toBe(3);
+    expect(editDistance("kitten", "sitting", 1)).toBe(2);
+  });
+});
+
+describe("scopeFilter", () => {
+  it("matches whole path segments", () => {
+    const inApi = scopeFilter("/docs/api/");
+    expect(inApi("/docs/api")).toBe(true);
+    expect(inApi("/docs/api/auth#tokens")).toBe(true);
+    expect(inApi("https://example.com/docs/api/auth")).toBe(true);
+    expect(inApi("/docs/apis")).toBe(false);
+    expect(inApi("/docs/guides/api")).toBe(false);
+    expect(scopeFilter(undefined)("/anything")).toBe(true);
+    expect(scopeFilter(["/blog", "/docs/api"])("/blog/post")).toBe(true);
   });
 });
 

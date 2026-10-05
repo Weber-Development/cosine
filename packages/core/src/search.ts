@@ -117,7 +117,12 @@ export class Cosine {
   /** Lexical search only. Synchronous, for results on every keystroke. */
   searchLexical(query: string, options: SearchOptions = {}): SearchResult[] {
     const limit = options.limit ?? 8;
-    const hits = this.lexical.search(query, options.groupByPage ? limit * 4 : limit);
+    const depth = options.scope
+      ? Math.max(200, limit * 4)
+      : options.groupByPage
+        ? limit * 4
+        : limit;
+    const hits = this.lexical.search(query, depth);
     return this.finish(
       query,
       hits.map((h) => ({
@@ -146,7 +151,7 @@ export class Cosine {
     if (this._status !== "ready") return this.searchLexical(query, options);
 
     const limit = options.limit ?? 8;
-    const depth = Math.max(50, limit * 4);
+    const depth = Math.max(options.scope ? 200 : 50, limit * 4);
     const vector = await this.embedQuery(query);
     const min = this.minSimilarity;
     const semantic = (this.vectors as VectorStore)
@@ -183,11 +188,12 @@ export class Cosine {
     options: SearchOptions,
   ): SearchResult[] {
     const limit = options.limit ?? 8;
+    const inScope = scopeFilter(options.scope);
     const seen = new Set<string>();
     const out: SearchResult[] = [];
     for (const hit of hits) {
       const chunk = this.chunks[hit.id];
-      if (!chunk) continue;
+      if (!chunk || !inScope(chunk.url)) continue;
       if (options.groupByPage) {
         if (seen.has(chunk.doc)) continue;
         seen.add(chunk.doc);
@@ -274,4 +280,22 @@ export function siblingUrl(url: string, file: string): string {
   if (/^[a-z][a-z\d+.-]*:/i.test(url)) return new URL(file, url).href;
   const path = url.replace(/[?#].*$/, "");
   return path.slice(0, path.lastIndexOf("/") + 1) + file;
+}
+
+/** Path of a URL without origin, query and hash. */
+function pathOf(url: string): string {
+  const path = url.replace(/^[a-z][a-z0-9+.-]*:\/\/[^/]*/i, "").replace(/[?#].*$/, "");
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
+/** Matches whole path segments: `/docs/api` covers `/docs/api` and `/docs/api/auth`, not `/docs/apis`. */
+export function scopeFilter(scope: string | string[] | undefined): (url: string) => boolean {
+  const prefixes = (Array.isArray(scope) ? scope : scope ? [scope] : [])
+    .map((s) => pathOf(s.trim()).replace(/\/+$/, ""))
+    .filter((s) => s !== "");
+  if (!prefixes.length) return () => true;
+  return (url) => {
+    const path = pathOf(url);
+    return prefixes.some((p) => path === p || path.startsWith(`${p}/`));
+  };
 }

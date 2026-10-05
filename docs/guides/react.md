@@ -29,7 +29,7 @@ export function DocsSearch() {
 }
 ```
 
-`CosineSearch` renders the [`<cosine-search>`](web-component.md) web component, so attributes, styling and accessibility are the same.
+`CosineSearch` renders the [`<cosine-search>`](web-component.md) web component, so attributes, styling and accessibility are the same. `scope` takes a string or an array, e.g. `scope={["/docs/api", "/docs/guides"]}`.
 
 ## Hooks for your own UI
 
@@ -40,7 +40,7 @@ import { useState } from "react";
 export function Search() {
   const { cosine, status } = useCosine("/cosine/cosine-index.json");
   const [query, setQuery] = useState("");
-  const { results } = useCosineSearch(cosine, query, { limit: 5, groupByPage: true });
+  const { results } = useCosineSearch(cosine, query, { limit: 5, groupByPage: true, scope: "/docs" });
 
   return (
     <>

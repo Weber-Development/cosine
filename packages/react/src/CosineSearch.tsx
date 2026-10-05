@@ -12,6 +12,8 @@ export interface CosineSearchProps {
   placeholder?: string;
   label?: string;
   limit?: number;
+  /** Search only below these URL paths, e.g. `"/docs/api"` or `["/docs/api", "/docs/guides"]`. */
+  scope?: string | string[];
   /** `/` (default), `mod+k` or `none`. */
   shortcut?: string;
   loadModel?: "lazy" | "eager" | "never";
@@ -43,12 +45,13 @@ export function CosineSearch({ cosine, onSelect, loadModel, ...props }: CosineSe
     return () => el.removeEventListener("cosine-select", listener);
   }, [onSelect]);
 
-  const { className, limit, ...rest } = props;
+  const { className, limit, scope, ...rest } = props;
   return createElement("cosine-search", {
     ref,
     class: className,
     ...rest,
     ...(limit !== undefined && { limit: String(limit) }),
+    ...(scope && { scope: Array.isArray(scope) ? scope.join(" ") : scope }),
     ...(loadModel && { "load-model": loadModel }),
     suppressHydrationWarning: true,
   });

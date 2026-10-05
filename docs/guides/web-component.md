@@ -24,6 +24,9 @@ It works in any framework or none: Astro, VitePress, Docusaurus, Hugo, Eleventy,
 | `shortcut` | `/` | `/`, `mod+k` (Ctrl K / ⌘K) or `none` |
 | `mode` | `hybrid` | `lexical` never loads the model |
 | `load-model` | `lazy` | `lazy` (on focus), `eager` (right away), `never` |
+| `scope` | whole index | Space-separated URL paths to search in, e.g. `/docs/api /docs/guides` |
+
+`scope` matches whole path segments: `/docs/api` covers `/docs/api/auth`, but not `/docs/apis`. Use it for a search field that only covers one section, such as the API reference.
 
 ## Accessibility
 

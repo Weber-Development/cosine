@@ -10,8 +10,10 @@ const STYLE = `
   --_muted: var(--cosine-muted, color-mix(in srgb, currentColor 65%, transparent)); }
 .field { position: relative; }
 input { box-sizing: border-box; width: 100%; font: inherit; color: inherit; background: var(--_bg);
-  border: 1px solid var(--_border); border-radius: var(--cosine-radius, 8px); padding: .6em .8em; }
+  border: 1px solid var(--_border); border-radius: var(--cosine-radius, 8px); padding: .6em 2.6em .6em .8em; }
 input:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
+.field:focus-within kbd { display: none; }
+input::-webkit-search-cancel-button { cursor: pointer; }
 kbd { position: absolute; right: .6em; top: 50%; transform: translateY(-50%); font: inherit; font-size: .75em;
   color: var(--_muted); border: 1px solid var(--_border); border-radius: 4px; padding: 0 .35em; pointer-events: none; }
 [role="listbox"] { position: absolute; z-index: var(--cosine-z, 50); left: 0; right: 0; margin: .3em 0 0; padding: .3em;
@@ -32,6 +34,20 @@ mark { background: none; color: var(--_accent); font-weight: 600; }
 
 let counter = 0;
 
+/** `detail` of the `cosine-select` event. */
+export interface CosineSelectDetail extends SearchResult {
+  /** The query that produced the result. */
+  query: string;
+  /** Position in the list, starting at 1. */
+  rank: number;
+}
+
+/** `detail` of the `cosine-results` event. */
+export interface CosineResultsDetail {
+  query: string;
+  results: SearchResult[];
+}
+
 /**
  * `<cosine-search index="/cosine/cosine-index.json">`: an accessible search field (ARIA combobox)
  * with results while typing.
@@ -39,7 +55,9 @@ let counter = 0;
  * Attributes: `index` (URL of `cosine-index.json`), `lang` (`en`, `de`, `fr`, `it`), `limit`,
  * `placeholder`, `shortcut` (`/` or `mod+k`, default `/`), `mode` (`hybrid`, `lexical`),
  * `load-model` (`lazy`, `eager`, `never`). Styling via `--cosine-*` custom properties and `::part`.
- * Fires `cosine-select` with the result before navigating; call `preventDefault()` to handle it yourself.
+ * Fires `cosine-results` with `{ query, results }` after each search, and `cosine-select` with the
+ * chosen result (plus `query` and `rank`) before navigating; call `preventDefault()` on it to
+ * handle navigation yourself.
  */
 export class CosineSearchElement extends HTMLElement {
   static observedAttributes = ["index", "lang", "placeholder"];
@@ -47,6 +65,7 @@ export class CosineSearchElement extends HTMLElement {
   private engine: Cosine | null = null;
   private loading: Promise<Cosine> | null = null;
   private results: SearchResult[] = [];
+  private query = "";
   private active = -1;
   private seq = 0;
   private readonly uid = `cosine-${++counter}`;
@@ -184,6 +203,7 @@ export class CosineSearchElement extends HTMLElement {
 
   private render(results: SearchResult[], query = "") {
     this.results = results;
+    this.query = query;
     this.active = -1;
     this.input.removeAttribute("aria-activedescendant");
     this.list.replaceChildren();
@@ -228,6 +248,13 @@ export class CosineSearchElement extends HTMLElement {
       this.list.append(li);
     });
     this.open(true);
+    this.dispatchEvent(
+      new CustomEvent("cosine-results", {
+        detail: { query, results },
+        bubbles: true,
+        composed: true,
+      }),
+    );
     this.live.textContent = results.length
       ? this.texts.results.replace("{count}", String(results.length))
       : this.texts.noResults;
@@ -287,8 +314,13 @@ export class CosineSearchElement extends HTMLElement {
   }
 
   private select(result: SearchResult, e: Event) {
+    const detail: CosineSelectDetail = {
+      ...result,
+      query: this.query,
+      rank: this.results.indexOf(result) + 1,
+    };
     const event = new CustomEvent("cosine-select", {
-      detail: result,
+      detail,
       cancelable: true,
       bubbles: true,
       composed: true,
@@ -311,5 +343,9 @@ export function defineCosineSearch(tag = "cosine-search"): void {
 declare global {
   interface HTMLElementTagNameMap {
     "cosine-search": CosineSearchElement;
+  }
+  interface HTMLElementEventMap {
+    "cosine-results": CustomEvent<CosineResultsDetail>;
+    "cosine-select": CustomEvent<CosineSelectDetail>;
   }
 }

@@ -53,13 +53,24 @@ describe("<cosine-search>", () => {
     expect(input.getAttribute("aria-activedescendant")).toBe(option.id);
     let selected = "";
     el.addEventListener("cosine-select", (e) => {
-      selected = (e as CustomEvent).detail.chunk.url;
+      selected = `${e.detail.chunk.url} ${e.detail.query} ${e.detail.rank}`;
       e.preventDefault();
     });
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
-    expect(selected).toBe("/docs/a#plans");
+    expect(selected).toBe("/docs/a#plans plan 1");
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(input.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("reports every result list with cosine-results", async () => {
+    const { el, type } = await mount();
+    const seen: string[] = [];
+    el.addEventListener("cosine-results", (e) =>
+      seen.push(`${e.detail.query}:${e.detail.results.length}`),
+    );
+    await type("invoices");
+    await type("xyzzy");
+    expect(seen).toEqual(["invoices:1", "xyzzy:0"]);
   });
 
   it("speaks German and reports no results", async () => {

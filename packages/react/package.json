@@ -1,6 +1,6 @@
 {
   "name": "@sweberdev/cosine-react",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "React hooks and component for Cosine, semantic docs search that runs in the browser.",
   "license": "MIT",
   "author": "Seya Weber (https://github.com/sxwxbxr)",

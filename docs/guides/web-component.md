@@ -28,6 +28,18 @@ It works in any framework or none: Astro, VitePress, Docusaurus, Hugo, Eleventy,
 
 `scope` matches whole path segments: `/docs/api` covers `/docs/api/auth`, but not `/docs/apis`. Use it for a search field that only covers one section, such as the API reference.
 
+## Search syntax
+
+Visitors can narrow a search without any setup:
+
+| Query | Finds |
+|---|---|
+| `"reset password"` | Sections that contain these words next to each other, in this order |
+| `webhook -retry` | Sections about webhooks that do not contain `retry` |
+| `sign-in`, `e-mail` | Normal words: only a `-` at the start of a word excludes |
+
+Phrases and exclusions apply in every mode, also to the results of the semantic ranking. Small words such as `the` do not break a phrase. Accents and case are ignored, like everywhere else.
+
 ## Filters by section
 
 `cosine.facets(query)` counts the results per section of the site, so your own search page can offer filters and use the chosen path as `scope`:

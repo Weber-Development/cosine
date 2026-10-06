@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { editDistance, LexicalIndex } from "../src/lexical";
+import { editDistance, LexicalIndex, parseQuery } from "../src/lexical";
 import { fuse, scopeFilter, siblingUrl } from "../src/search";
 import { makeSnippet } from "../src/snippet";
 import { normalize, tokenize } from "../src/tokenize";
@@ -100,6 +100,51 @@ describe("VectorStore", () => {
     expect(() => VectorStore.fromBuffer(new ArrayBuffer(16))).toThrow(/not a Cosine/);
     const store = VectorStore.fromVectors([new Float32Array([1, 0])]);
     expect(() => store.search(new Float32Array([1, 0, 0]))).toThrow(/same model/);
+  });
+});
+
+describe("search operators", () => {
+  const index = new LexicalIndex([
+    "reset your password by email",
+    "your email password is stored hashed",
+    "reset the email server",
+    "sign-in with e-mail",
+  ]);
+
+  it("parses phrases and exclusions, keeping hyphenated words", () => {
+    expect(parseQuery('reset "stored hashed" -server sign-in')).toEqual({
+      text: "reset stored hashed sign-in",
+      phrases: ["stored hashed"],
+      excluded: ["server"],
+    });
+    expect(parseQuery('"open quote').phrases).toEqual(["open quote"]);
+    expect(parseQuery("a - b").excluded).toEqual([]);
+    expect(parseQuery('"x"').text.endsWith(" ")).toBe(true);
+  });
+
+  it("requires phrases to appear in order", () => {
+    const ids = (q: string) => index.search(q).map((h) => h.id);
+    expect(ids("password email").sort()).toEqual([0, 1, 2]);
+    expect(ids('"password by email"')).toEqual([0]);
+    expect(ids('"email password"')).toEqual([1]);
+    // stop words ("by") do not break a phrase
+    expect(ids('"password email"')).toEqual([0]);
+    expect(ids('"email reset"')).toEqual([]);
+  });
+
+  it("drops chunks with excluded words", () => {
+    const ids = index.search("reset email -server").map((h) => h.id);
+    expect(ids).toContain(0);
+    expect(ids).not.toContain(2);
+    expect(index.search("-server")).toEqual([]);
+  });
+
+  it("exposes the constraints for other rankings", () => {
+    expect(index.constraints("plain words")).toBeNull();
+    const ok = index.constraints("-server -hashed");
+    expect([0, 1, 2, 3].filter((id) => ok?.(id))).toEqual([0, 3]);
+    const phrase = index.constraints('"email password"');
+    expect([0, 1, 2, 3].filter((id) => phrase?.(id))).toEqual([1]);
   });
 });
 

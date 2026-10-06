@@ -18,6 +18,8 @@ Build options:
   --query-prefix <s>   Prefix for queries (custom E5/BGE models)
   --passage-prefix <s> Prefix for passages (custom E5/BGE models)
   --synonyms <file>    JSON file with synonym groups, e.g. [["login", "sign-in"]]
+  --boost <path=n>     Rank results below a path higher (n > 1) or lower (n < 1), repeatable,
+                       e.g. --boost /docs/api=1.5 --boost /blog=0.7
   --incremental        Reuse the vectors of the index in --out, embed only changed sections
 
 Search options:
@@ -38,6 +40,20 @@ export function parseSynonyms(value: unknown): string[][] {
   return groups as string[][];
 }
 
+/** `["/docs/api=1.5", "/blog=0.7"]` → `{ "/docs/api": 1.5, "/blog": 0.7 }`. */
+export function parseBoost(values: string[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const value of values) {
+    const at = value.lastIndexOf("=");
+    const factor = Number(value.slice(at + 1));
+    if (at < 1 || !Number.isFinite(factor) || factor <= 0) {
+      throw new Error(`--boost needs <path>=<number above 0>, got "${value}"`);
+    }
+    out[value.slice(0, at)] = factor;
+  }
+  return out;
+}
+
 export async function run(
   argv: string[],
   log: (line: string) => void = console.log,
@@ -56,6 +72,7 @@ export async function run(
       "passage-prefix": { type: "string" },
       synonyms: { type: "string" },
       incremental: { type: "boolean" },
+      boost: { type: "string", multiple: true },
       mode: { type: "string" },
       limit: { type: "string" },
       help: { type: "boolean", short: "h" },
@@ -96,11 +113,19 @@ export async function run(
         return 1;
       }
     }
+    let boost: Record<string, number> | undefined;
+    try {
+      boost = values.boost && parseBoost(values.boost);
+    } catch (error) {
+      log(`cosine build: ${(error as Error).message}`);
+      return 1;
+    }
     const previous = values.incremental && embedder ? await readIndex(out) : null;
     const started = Date.now();
     const { index, files } = await buildDirectory(dir, out, {
       embedder,
       ...(synonyms && { synonyms }),
+      ...(boost && { boost }),
       ...(previous && { previous }),
       baseUrl: values["base-url"] ?? "/",
       ...(values.exclude && { exclude: values.exclude }),

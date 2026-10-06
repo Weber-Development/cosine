@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { buildIndex } from "../src/build";
-import { parseSynonyms, run } from "../src/cli";
+import { parseBoost, parseSynonyms, run } from "../src/cli";
 import { buildDirectory, fileUrl, loadIndexFile, readDocs, readIndex } from "../src/node";
 import { Cosine, loadIndex } from "../src/search";
 import { cosineSimilarity, VectorStore } from "../src/vectors";
@@ -77,6 +77,40 @@ describe("Cosine", () => {
       scope: ["/docs/"],
     });
     expect(hybrid.every((r) => r.chunk.url.startsWith("/docs/"))).toBe(true);
+  });
+
+  it("applies operators in every mode and ranks boosted paths higher", async () => {
+    const { cosine, built } = await engine();
+    await cosine.warmup();
+    expect((await cosine.search("invoices -plan", { mode: "lexical" }))[0]?.chunk.url).toContain(
+      "#invoices",
+    );
+    const semantic = await cosine.search("uninstall -daemon", { mode: "semantic" });
+    expect(semantic.every((r) => !/daemon/i.test(r.chunk.text))).toBe(true);
+    expect((await cosine.search('"any time"', { mode: "hybrid" })).length).toBe(1);
+
+    const plain = cosine.searchLexical("plan invoices", { limit: 5 });
+    const boosted = new Cosine({
+      manifest: { ...built.manifest, boost: { "/docs/": 1, "/docs/guides/billing#invoices": 5 } },
+    }).searchLexical("plan invoices", { limit: 5 });
+    expect(boosted[0]?.chunk.url).toBe("/docs/guides/billing#invoices");
+    expect(boosted.map((r) => r.chunk.id).sort()).toEqual(plain.map((r) => r.chunk.id).sort());
+  });
+
+  it("stores --boost from the CLI and validates it", async () => {
+    const out = await mkdtemp(join(tmpdir(), "cosine-boost-"));
+    expect(
+      await run(
+        ["build", DOCS, "--out", out, "--lexical-only", "--boost", "/docs/guides=2"],
+        () => {},
+      ),
+    ).toBe(0);
+    const manifest = JSON.parse(await readFile(join(out, "cosine-index.json"), "utf8"));
+    expect(manifest.boost).toEqual({ "/docs/guides": 2 });
+    expect(parseBoost(["/a=0.5", "/b/c=3"])).toEqual({ "/a": 0.5, "/b/c": 3 });
+    expect(() => parseBoost(["/a=0"])).toThrow(/--boost/);
+    expect(() => parseBoost(["nope"])).toThrow(/--boost/);
+    expect(await run(["build", DOCS, "--out", out, "--boost", "x=y"], () => {})).toBe(1);
   });
 
   it("counts results per section of the site", async () => {

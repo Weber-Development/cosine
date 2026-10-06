@@ -20,7 +20,7 @@
     },
     {
       "label": "Cosine Pro",
-      "items": ["pro/overview", "pro/vite", "pro/insights"]
+      "items": ["pro/overview", "pro/vite", "pro/next", "pro/insights"]
     }
   ]
 }

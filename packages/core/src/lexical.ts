@@ -5,6 +5,40 @@ export interface LexicalOptions {
   synonyms?: string[][];
 }
 
+/** A query split into plain words, `"exact phrases"` and `-excluded` words. */
+export interface ParsedQuery {
+  /** The query without operators, phrase words included. Ends with a space when it ended closed. */
+  text: string;
+  phrases: string[];
+  excluded: string[];
+}
+
+/**
+ * Splits `"exact phrase"` and `-word` out of a query. A `-` only excludes at the start of a word,
+ * so `sign-in` and `e-mail` stay normal words.
+ */
+export function parseQuery(query: string): ParsedQuery {
+  const words: string[] = [];
+  const phrases: string[] = [];
+  const excluded: string[] = [];
+  const pattern = /"([^"]*)"?|(\S+)/g;
+  for (let m = pattern.exec(query); m; m = pattern.exec(query)) {
+    if (m[2] === undefined) {
+      const phrase = tokenize(m[1] ?? "");
+      if (phrase.length) {
+        phrases.push(phrase.join(" "));
+        words.push(phrase.join(" "));
+      }
+    } else if (m[2].startsWith("-") && m[2].length > 1) {
+      excluded.push(...tokenize(m[2].slice(1)));
+    } else {
+      words.push(m[2]);
+    }
+  }
+  const closed = /\s$|"$/.test(query);
+  return { text: words.join(" ") + (closed ? " " : ""), phrases, excluded };
+}
+
 export interface LexicalHit {
   id: number;
   score: number;
@@ -14,6 +48,7 @@ export interface LexicalHit {
 export class LexicalIndex {
   private readonly postings = new Map<string, Array<[id: number, tf: number]>>();
   private readonly lengths: number[] = [];
+  private readonly sequences: string[] = [];
   private readonly avgLength: number;
   private readonly terms: string[];
   private readonly synonyms = new Map<string, string[]>();
@@ -37,6 +72,7 @@ export class LexicalIndex {
     texts.forEach((text, id) => {
       const tokens = tokenize(text);
       this.lengths[id] = tokens.length;
+      this.sequences[id] = ` ${tokens.join(" ")} `;
       total += tokens.length;
       const counts = new Map<string, number>();
       for (const token of tokens) counts.set(token, (counts.get(token) ?? 0) + 1);
@@ -63,7 +99,10 @@ export class LexicalIndex {
    * close spellings (`instalation` finds `installation`) at a lower weight, and every word also
    * finds its synonyms.
    */
-  search(query: string, limit = 20): LexicalHit[] {
+  search(rawQuery: string, limit = 20): LexicalHit[] {
+    const parsed = parseQuery(rawQuery);
+    const query = parsed.text;
+    const allowed = this.constraints(parsed);
     const tokens = tokenize(query);
     if (!tokens.length) return [];
     const scores = new Map<number, number>();
@@ -96,9 +135,23 @@ export class LexicalIndex {
       }
     });
     return [...scores]
+      .filter(([id]) => !allowed || allowed(id))
       .map(([id, score]) => ({ id, score }))
       .sort((a, b) => b.score - a.score || a.id - b.id)
       .slice(0, limit);
+  }
+
+  /**
+   * A test for chunks that satisfy the `"phrases"` and `-exclusions` of a query, or `null` when the
+   * query has none.
+   */
+  constraints(query: string | ParsedQuery): ((id: number) => boolean) | null {
+    const { phrases, excluded } = typeof query === "string" ? parseQuery(query) : query;
+    if (!phrases.length && !excluded.length) return null;
+    const banned = new Set<number>();
+    for (const term of excluded) for (const [id] of this.postings.get(term) ?? []) banned.add(id);
+    return (id) =>
+      !banned.has(id) && phrases.every((p) => (this.sequences[id] ?? "").includes(` ${p} `));
   }
 
   /** Terms within edit distance 1 (2 from eight letters on) of a word that is not in the index. */

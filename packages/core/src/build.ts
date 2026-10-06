@@ -12,6 +12,8 @@ export interface BuildOptions extends ChunkOptions {
   onProgress?: (done: number, total: number) => void;
   /** Groups of words that mean the same, stored in the index, e.g. `[["login", "sign-in"]]`. */
   synonyms?: string[][];
+  /** Ranking weights per URL path, stored in the index, e.g. `{ "/docs/api": 1.5, "/blog": 0.7 }`. */
+  boost?: Record<string, number>;
   /**
    * The index from the last build. Sections whose text did not change keep their vectors, so
    * only new and changed sections are embedded. Ignored when it was built with another model.
@@ -88,6 +90,7 @@ export async function buildIndex(
   if (modelOptions) manifest.modelOptions = modelOptions;
   const synonyms = options.synonyms?.filter((group) => group.length > 1);
   if (synonyms?.length) manifest.synonyms = synonyms;
+  if (options.boost && Object.keys(options.boost).length) manifest.boost = options.boost;
   return { manifest, vectors, reused, embedded };
 }
 

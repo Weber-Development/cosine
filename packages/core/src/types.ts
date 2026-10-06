@@ -51,6 +51,8 @@ export interface IndexManifest {
   chunks: Chunk[];
   /** Groups of words that mean the same, e.g. `[["login", "sign-in"]]`. */
   synonyms?: string[][];
+  /** Ranking weights per URL path, e.g. `{ "/docs/api": 1.5 }`. */
+  boost?: Record<string, number>;
   createdAt: string;
 }
 

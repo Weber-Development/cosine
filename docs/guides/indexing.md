@@ -31,6 +31,7 @@ The model sees each chunk together with its page title and heading path, e.g. `B
 | `--lexical-only` | | No vectors, keyword search only |
 | `--exclude <path>` | | Skip files whose relative path starts with this (repeatable) |
 | `--max-chars <n>` | `1200` | Soft maximum chunk length |
+| `--boost <path=n>` | | Rank results below a path higher (n above 1) or lower (below 1), repeatable, e.g. `--boost /docs/api=1.5 --boost /blog=0.7` |
 | `--synonyms <file>` | | JSON file with synonym groups, see [Synonyms](#synonyms) |
 | `--incremental` | | Reuse the vectors of the index in `--out`, embed only new and changed sections |
 
@@ -50,6 +51,16 @@ npx cosine build docs --synonyms synonyms.json
 ```
 
 Every word in a group finds the others. A synonym ranks a little below the exact word. The list is stored in `cosine-index.json`, so the browser needs nothing else. An array of groups (`[["login", "sign-in", "anmelden"]]`) works too.
+
+## Boosting sections
+
+Not every page deserves the same rank. `--boost` weights a part of the site up or down. The weights are stored in the index:
+
+```bash
+npx cosine build docs --boost /docs/api=1.5 --boost /blog=0.7
+```
+
+Results below `/docs/api` rank 50 % higher, blog results 30 % lower. Paths match whole segments, the longest matching path wins, and a weight of 1 changes nothing. In code, `boost` works for `buildIndex()` (stored) and `loadIndex()` (override).
 
 ## Incremental builds
 

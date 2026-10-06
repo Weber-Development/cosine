@@ -1,5 +1,5 @@
 import { transformersEmbedder } from "./embedder";
-import { LexicalIndex } from "./lexical";
+import { LexicalIndex, parseQuery } from "./lexical";
 import { makeSnippet } from "./snippet";
 import type {
   Chunk,
@@ -47,6 +47,11 @@ export interface CosineOptions {
   minSimilarity?: number;
   /** Synonym groups, e.g. `[["login", "sign-in"]]`. Default: the ones stored in the index. */
   synonyms?: string[][];
+  /**
+   * Ranking weights per URL path, e.g. `{ "/docs/api": 1.5, "/blog": 0.7 }`: results below a path
+   * are ranked higher (above 1) or lower (below 1). Default: the ones stored in the index.
+   */
+  boost?: Record<string, number>;
 }
 
 const RRF_K = 60;
@@ -59,6 +64,7 @@ export class Cosine {
   private readonly embedder: Embedder | null;
   private readonly loadModel: "lazy" | "eager" | "never";
   private readonly minSimilarity: number | undefined;
+  private readonly boosts: Array<{ path: string; factor: number }>;
   private _status: SearchStatus;
   private warming: Promise<void> | undefined;
   private readonly listeners = new Set<(status: SearchStatus) => void>();
@@ -73,6 +79,11 @@ export class Cosine {
       ),
       { synonyms: options.synonyms ?? manifest.synonyms ?? [] },
     );
+    const boost = options.boost ?? manifest.boost ?? {};
+    this.boosts = Object.entries(boost)
+      .map(([path, factor]) => ({ path: pathOf(path.trim()).replace(/\/+$/, ""), factor }))
+      .filter((b) => Number.isFinite(b.factor) && b.factor > 0 && b.factor !== 1)
+      .sort((a, b) => b.path.length - a.path.length);
     this.vectors = options.vectors ?? null;
     if (this.vectors && this.vectors.count !== this.chunks.length) {
       throw new Error(
@@ -139,8 +150,8 @@ export class Cosine {
     const limit = options.limit ?? 8;
     const depth = options.scope
       ? Math.max(200, limit * 4)
-      : options.groupByPage
-        ? limit * 4
+      : options.groupByPage || this.boosts.length
+        ? Math.max(50, limit * 4)
         : limit;
     const hits = this.lexical.search(query, depth);
     return this.finish(
@@ -172,7 +183,8 @@ export class Cosine {
 
     const limit = options.limit ?? 8;
     const depth = Math.max(options.scope ? 200 : 50, limit * 4);
-    const vector = await this.embedQuery(query);
+    const plain = parseQuery(query).text;
+    const vector = await this.embedQuery(plain.trim() || query);
     const min = this.minSimilarity;
     const semantic = (this.vectors as VectorStore)
       .search(vector, depth)
@@ -235,9 +247,11 @@ export class Cosine {
   ): SearchResult[] {
     const limit = options.limit ?? 8;
     const inScope = scopeFilter(options.scope);
+    const allowed = this.lexical.constraints(query);
     const seen = new Set<string>();
     const out: SearchResult[] = [];
-    for (const hit of hits) {
+    for (const hit of this.boosted(hits)) {
+      if (allowed && !allowed(hit.id)) continue;
       const chunk = this.chunks[hit.id];
       if (!chunk || !inScope(chunk.url)) continue;
       if (options.groupByPage) {
@@ -253,6 +267,21 @@ export class Cosine {
       if (out.length >= limit) break;
     }
     return out;
+  }
+
+  /** Applies the path weights and re-sorts, or returns the hits as they are without any. */
+  private boosted<T extends { id: number; score: number }>(hits: T[]): T[] {
+    if (!this.boosts.length) return hits;
+    const weight = (id: number) => {
+      const path = pathOf(this.chunks[id]?.url ?? "");
+      return (
+        this.boosts.find((b) => b.path === "" || path === b.path || path.startsWith(`${b.path}/`))
+          ?.factor ?? 1
+      );
+    };
+    return hits
+      .map((h) => ({ ...h, score: h.score * weight(h.id) }))
+      .sort((a, b) => b.score - a.score || a.id - b.id);
   }
 
   private setStatus(status: SearchStatus) {

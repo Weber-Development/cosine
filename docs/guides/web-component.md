@@ -28,6 +28,16 @@ It works in any framework or none: Astro, VitePress, Docusaurus, Hugo, Eleventy,
 
 `scope` matches whole path segments: `/docs/api` covers `/docs/api/auth`, but not `/docs/apis`. Use it for a search field that only covers one section, such as the API reference.
 
+## Filters by section
+
+`cosine.facets(query)` counts the results per section of the site, so your own search page can offer filters and use the chosen path as `scope`:
+
+```ts
+const facets = await cosine.facets("webhook", { depth: 2 });
+// [{ path: "/docs/guides", count: 7 }, { path: "/docs/api", count: 3 }]
+const results = await cosine.search("webhook", { scope: facets[0].path });
+```
+
 ## Accessibility
 
 The field follows the ARIA combobox pattern: arrow keys move through the results, <kbd>Enter</kbd> opens one, <kbd>Esc</kbd> closes the list and then clears the field. The number of results is announced to screen readers, matches are marked with `<mark>`, and animations respect reduced motion.

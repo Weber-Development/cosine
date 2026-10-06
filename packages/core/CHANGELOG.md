@@ -1,5 +1,11 @@
 # @sweberdev/cosine
 
+## 0.5.0
+
+### Minor Changes
+
+- 817f40f: Facets: `cosine.facets(query, { depth })` counts the results of a query per section of the site (`/docs/guides` 12, `/docs/api` 5), so a search page can offer filters. A facet's path works as `scope`.
+
 ## 0.4.0
 
 ### Minor Changes

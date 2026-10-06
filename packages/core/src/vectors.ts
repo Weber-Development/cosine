@@ -81,6 +81,16 @@ export class VectorStore {
     return out;
   }
 
+  /** The stored vector at `index`, normalized and restored from int8. */
+  vector(index: number): Float32Array {
+    if (index < 0 || index >= this.count) throw new RangeError(`cosine: no vector ${index}`);
+    const d = this.dimensions;
+    const scale = this.scales[index] as number;
+    const out = new Float32Array(d);
+    for (let j = 0; j < d; j++) out[j] = (this.data[index * d + j] as number) * scale;
+    return out;
+  }
+
   /** Cosine similarity of `query` to every stored vector, best first. */
   search(query: Float32Array, limit = 20): Array<{ id: number; score: number }> {
     if (query.length !== this.dimensions) {

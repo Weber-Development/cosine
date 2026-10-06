@@ -31,6 +31,8 @@ export interface CosineOptions {
    * Defaults to the value stored in the index for the model (0.2 for the English model).
    */
   minSimilarity?: number;
+  /** Synonym groups, e.g. `[["login", "sign-in"]]`. Default: the ones stored in the index. */
+  synonyms?: string[][];
 }
 
 const RRF_K = 60;
@@ -55,6 +57,7 @@ export class Cosine {
       this.chunks.map(
         (c) => `${c.title} ${c.headings.join(" ")} ${c.headings.join(" ")} ${c.text}`,
       ),
+      { synonyms: options.synonyms ?? manifest.synonyms ?? [] },
     );
     this.vectors = options.vectors ?? null;
     if (this.vectors && this.vectors.count !== this.chunks.length) {
@@ -66,7 +69,10 @@ export class Cosine {
       options.embedder === false || !this.vectors || !manifest.model
         ? null
         : (options.embedder ??
-          transformersEmbedder({ ...manifest.modelOptions, model: manifest.model }));
+          transformersEmbedder({
+            ...manifest.modelOptions,
+            model: manifest.model,
+          }));
     if (this.embedder && this.embedder.model !== manifest.model) {
       throw new Error(
         `cosine: the index was built with ${manifest.model}, the embedder uses ${this.embedder.model}.`,
@@ -160,7 +166,10 @@ export class Cosine {
     if (mode === "semantic") {
       return this.finish(
         query,
-        semantic.map((h) => ({ ...h, matchedBy: ["semantic"] as Array<"lexical" | "semantic"> })),
+        semantic.map((h) => ({
+          ...h,
+          matchedBy: ["semantic"] as Array<"lexical" | "semantic">,
+        })),
         options,
       );
     }
@@ -184,7 +193,11 @@ export class Cosine {
 
   private finish(
     query: string,
-    hits: Array<{ id: number; score: number; matchedBy: Array<"lexical" | "semantic"> }>,
+    hits: Array<{
+      id: number;
+      score: number;
+      matchedBy: Array<"lexical" | "semantic">;
+    }>,
     options: SearchOptions,
   ): SearchResult[] {
     const limit = options.limit ?? 8;
@@ -220,14 +233,22 @@ export class Cosine {
 export function fuse(
   lexical: Array<{ id: number }>,
   semantic: Array<{ id: number }>,
-): Array<{ id: number; score: number; matchedBy: Array<"lexical" | "semantic"> }> {
+): Array<{
+  id: number;
+  score: number;
+  matchedBy: Array<"lexical" | "semantic">;
+}> {
   const merged = new Map<
     number,
     { id: number; score: number; matchedBy: Array<"lexical" | "semantic"> }
   >();
   const add = (list: Array<{ id: number }>, source: "lexical" | "semantic") => {
     list.forEach((hit, rank) => {
-      const entry = merged.get(hit.id) ?? { id: hit.id, score: 0, matchedBy: [] };
+      const entry = merged.get(hit.id) ?? {
+        id: hit.id,
+        score: 0,
+        matchedBy: [],
+      };
       entry.score += 1 / (RRF_K + rank + 1);
       entry.matchedBy.push(source);
       merged.set(hit.id, entry);

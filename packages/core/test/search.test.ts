@@ -1,12 +1,12 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { buildIndex } from "../src/build";
-import { run } from "../src/cli";
-import { buildDirectory, fileUrl, loadIndexFile, readDocs } from "../src/node";
+import { parseSynonyms, run } from "../src/cli";
+import { buildDirectory, fileUrl, loadIndexFile, readDocs, readIndex } from "../src/node";
 import { Cosine, loadIndex } from "../src/search";
-import { VectorStore } from "../src/vectors";
+import { cosineSimilarity, VectorStore } from "../src/vectors";
 import { toyEmbedder } from "./helpers";
 
 const DOCS = join(import.meta.dirname, "fixtures/docs");
@@ -19,7 +19,12 @@ async function engine(options: Partial<ConstructorParameters<typeof Cosine>[0]> 
     (built.vectors as Uint8Array).slice().buffer as ArrayBuffer,
   );
   return {
-    cosine: new Cosine({ manifest: built.manifest, vectors, embedder, ...options }),
+    cosine: new Cosine({
+      manifest: built.manifest,
+      vectors,
+      embedder,
+      ...options,
+    }),
     embedder,
     built,
   };
@@ -61,12 +66,16 @@ describe("Cosine", () => {
     const { cosine } = await engine();
     const all = cosine.searchLexical("team invoices", { limit: 20 });
     expect(all.some((r) => r.chunk.url.startsWith("/docs/guides/"))).toBe(true);
-    const billing = cosine.searchLexical("team invoices", { scope: "/docs/guides/billing" });
+    const billing = cosine.searchLexical("team invoices", {
+      scope: "/docs/guides/billing",
+    });
     expect(billing.length).toBeGreaterThan(0);
     expect(billing.every((r) => r.chunk.url.startsWith("/docs/guides/billing"))).toBe(true);
     expect(cosine.searchLexical("invoices", { scope: "/docs/nowhere" })).toEqual([]);
     await cosine.warmup();
-    const hybrid = await cosine.search("coworker rights", { scope: ["/docs/"] });
+    const hybrid = await cosine.search("coworker rights", {
+      scope: ["/docs/"],
+    });
     expect(hybrid.every((r) => r.chunk.url.startsWith("/docs/"))).toBe(true);
   });
 
@@ -112,9 +121,16 @@ describe("Cosine", () => {
     const vectors = VectorStore.fromBuffer(
       (built.vectors as Uint8Array).slice().buffer as ArrayBuffer,
     );
-    const broken = { model: "toy-model", embed: vi.fn().mockRejectedValue(new Error("offline")) };
+    const broken = {
+      model: "toy-model",
+      embed: vi.fn().mockRejectedValue(new Error("offline")),
+    };
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const cosine = new Cosine({ manifest: built.manifest, vectors, embedder: broken });
+    const cosine = new Cosine({
+      manifest: built.manifest,
+      vectors,
+      embedder: broken,
+    });
     await cosine.warmup();
     expect(cosine.status).toBe("model-failed");
     expect((await cosine.search("invoices", { mode: "semantic" }))[0]?.matchedBy).toEqual([
@@ -129,7 +145,12 @@ describe("Cosine", () => {
       (built.vectors as Uint8Array).slice().buffer as ArrayBuffer,
     );
     expect(
-      () => new Cosine({ manifest: built.manifest, vectors, embedder: toyEmbedder("other") }),
+      () =>
+        new Cosine({
+          manifest: built.manifest,
+          vectors,
+          embedder: toyEmbedder("other"),
+        }),
     ).toThrow(/built with toy-model/);
   });
 });
@@ -183,5 +204,64 @@ describe("files", () => {
     expect(lines[0]).toContain("Billing > Invoices");
     expect(lines[1]).toContain("/docs/guides/billing#invoices");
     expect(await run(["nope"], () => {})).toBe(1);
+  });
+
+  it("stores synonyms from the CLI in the index", async () => {
+    const out = await mkdtemp(join(tmpdir(), "cosine-syn-"));
+    const file = join(out, "synonyms.json");
+    await writeFile(file, JSON.stringify({ receipts: ["invoices"] }));
+    const lines: string[] = [];
+    expect(
+      await run(["build", DOCS, "--out", out, "--lexical-only", "--synonyms", file], (l) =>
+        lines.push(l),
+      ),
+    ).toBe(0);
+    const manifest = JSON.parse(await readFile(join(out, "cosine-index.json"), "utf8"));
+    expect(manifest.synonyms).toEqual([["receipts", "invoices"]]);
+    lines.length = 0;
+    await run(["search", out, "receipts", "--mode", "lexical"], (l) => lines.push(l));
+    expect(lines[0]).toContain("Billing > Invoices");
+
+    await writeFile(file, "{ nope");
+    expect(await run(["build", DOCS, "--out", out, "--synonyms", file], () => {})).toBe(1);
+    expect(() => parseSynonyms([["a", 1]])).toThrow(/expected/);
+  });
+
+  it("reuses the vectors of unchanged sections", async () => {
+    const docs = await readDocs(DOCS, { baseUrl: "/docs" });
+    const first = await buildIndex(docs, { embedder: toyEmbedder() });
+    const previous = {
+      manifest: first.manifest,
+      vectors: VectorStore.fromBuffer((first.vectors as Uint8Array).slice().buffer as ArrayBuffer),
+    };
+    const changed = docs.map((d, i) =>
+      i === 0 ? { ...d, content: `${d.content}\n\nNew line.` } : d,
+    );
+    const embedder = toyEmbedder();
+    const second = await buildIndex(changed, { embedder, previous });
+    expect(second.embedded).toBeGreaterThan(0);
+    expect(second.reused).toBe(second.manifest.chunks.length - second.embedded);
+    expect(second.reused).toBeGreaterThan(0);
+
+    const full = await buildIndex(changed, { embedder: toyEmbedder() });
+    const a = VectorStore.fromBuffer((second.vectors as Uint8Array).slice().buffer as ArrayBuffer);
+    const b = VectorStore.fromBuffer((full.vectors as Uint8Array).slice().buffer as ArrayBuffer);
+    for (let k = 0; k < a.count; k++) {
+      expect(cosineSimilarity(a.vector(k), b.vector(k))).toBeCloseTo(1, 4);
+    }
+
+    const other = await buildIndex(changed, {
+      embedder: toyEmbedder("other"),
+      previous,
+    });
+    expect(other.reused).toBe(0);
+  });
+
+  it("builds incrementally with the CLI", async () => {
+    const out = await mkdtemp(join(tmpdir(), "cosine-inc-"));
+    await buildDirectory(DOCS, out, { embedder: toyEmbedder() });
+    const previous = await readIndex(out);
+    expect(previous?.vectors?.count).toBe(previous?.manifest.chunks.length);
+    expect(await readIndex(join(out, "missing"))).toBeNull();
   });
 });

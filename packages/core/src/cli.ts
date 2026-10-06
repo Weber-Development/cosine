@@ -1,7 +1,8 @@
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { transformersEmbedder } from "./embedder";
-import { buildDirectory, loadIndexFile } from "./node";
+import { buildDirectory, loadIndexFile, readIndex } from "./node";
 
 const HELP = `Usage:
   cosine build <docs-dir> [options]     Build a search index from Markdown, MDX and HTML files
@@ -16,11 +17,26 @@ Build options:
   --max-chars <n>      Soft maximum chunk length (default: 1200)
   --query-prefix <s>   Prefix for queries (custom E5/BGE models)
   --passage-prefix <s> Prefix for passages (custom E5/BGE models)
+  --synonyms <file>    JSON file with synonym groups, e.g. [["login", "sign-in"]]
+  --incremental        Reuse the vectors of the index in --out, embed only changed sections
 
 Search options:
   --mode <mode>        hybrid (default), lexical or semantic
   --limit <n>          Number of results (default: 5)
 `;
+
+/** Accepts `[["a", "b"], ...]`, or `{ "a": ["b", "c"] }` as a shortcut. */
+export function parseSynonyms(value: unknown): string[][] {
+  const groups = Array.isArray(value)
+    ? value
+    : value && typeof value === "object"
+      ? Object.entries(value).map(([key, list]) => [key, ...(Array.isArray(list) ? list : [list])])
+      : null;
+  if (!groups?.every((g) => Array.isArray(g) && g.every((w: unknown) => typeof w === "string"))) {
+    throw new Error('expected [["login", "sign-in"], ...] or { "login": ["sign-in"] }');
+  }
+  return groups as string[][];
+}
 
 export async function run(
   argv: string[],
@@ -38,6 +54,8 @@ export async function run(
       "max-chars": { type: "string" },
       "query-prefix": { type: "string" },
       "passage-prefix": { type: "string" },
+      synonyms: { type: "string" },
+      incremental: { type: "boolean" },
       mode: { type: "string" },
       limit: { type: "string" },
       help: { type: "boolean", short: "h" },
@@ -62,14 +80,28 @@ export async function run(
       ? null
       : transformersEmbedder({
           model: values.model ?? "english",
-          ...(values["query-prefix"] !== undefined && { queryPrefix: values["query-prefix"] }),
+          ...(values["query-prefix"] !== undefined && {
+            queryPrefix: values["query-prefix"],
+          }),
           ...(values["passage-prefix"] !== undefined && {
             passagePrefix: values["passage-prefix"],
           }),
         });
+    let synonyms: string[][] | undefined;
+    if (values.synonyms) {
+      try {
+        synonyms = parseSynonyms(JSON.parse(await readFile(values.synonyms, "utf8")));
+      } catch (error) {
+        log(`cosine build: cannot read ${values.synonyms}: ${(error as Error).message}`);
+        return 1;
+      }
+    }
+    const previous = values.incremental && embedder ? await readIndex(out) : null;
     const started = Date.now();
     const { index, files } = await buildDirectory(dir, out, {
       embedder,
+      ...(synonyms && { synonyms }),
+      ...(previous && { previous }),
       baseUrl: values["base-url"] ?? "/",
       ...(values.exclude && { exclude: values.exclude }),
       ...(values["max-chars"] && { maxChars: Number(values["max-chars"]) }),
@@ -86,6 +118,13 @@ export async function run(
           ? ` with ${index.manifest.model} (${kb.toFixed(0)} KB vectors)`
           : " (lexical only)"),
     );
+    if (values.incremental && embedder) {
+      log(
+        previous
+          ? `Reused ${index.reused} sections, embedded ${index.embedded}`
+          : `No usable index in ${out}, embedded all ${index.embedded} sections`,
+      );
+    }
     for (const file of files) log(`  ${file}`);
     return 0;
   }
@@ -102,7 +141,10 @@ export async function run(
       loadModel: mode === "lexical" ? "never" : "eager",
     });
     await cosine.warmup();
-    const results = await cosine.search(query, { mode, limit: Number(values.limit ?? 5) });
+    const results = await cosine.search(query, {
+      mode,
+      limit: Number(values.limit ?? 5),
+    });
     if (!results.length) log("No results.");
     results.forEach((r, i) => {
       log(

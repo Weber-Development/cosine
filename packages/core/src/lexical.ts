@@ -1,5 +1,10 @@
 import { tokenize } from "./tokenize";
 
+export interface LexicalOptions {
+  /** Groups of words that mean the same, e.g. `[["login", "sign-in", "anmelden"]]`. */
+  synonyms?: string[][];
+}
+
 export interface LexicalHit {
   id: number;
   score: number;
@@ -11,12 +16,23 @@ export class LexicalIndex {
   private readonly lengths: number[] = [];
   private readonly avgLength: number;
   private readonly terms: string[];
+  private readonly synonyms = new Map<string, string[]>();
 
   constructor(
     texts: string[],
+    options: LexicalOptions = {},
     private readonly k1 = 1.2,
     private readonly b = 0.75,
   ) {
+    for (const group of options.synonyms ?? []) {
+      const words = [...new Set(group.flatMap((w) => tokenize(w)))];
+      for (const word of words) {
+        const others = this.synonyms.get(word) ?? [];
+        for (const other of words)
+          if (other !== word && !others.includes(other)) others.push(other);
+        this.synonyms.set(word, others);
+      }
+    }
     let total = 0;
     texts.forEach((text, id) => {
       const tokens = tokenize(text);
@@ -44,7 +60,8 @@ export class LexicalIndex {
   /**
    * Ranks chunks for `query`. The last word also matches as a prefix (`instal` finds `install`),
    * so results show up while the user is still typing. A word that is not in the index matches
-   * close spellings (`instalation` finds `installation`) at a lower weight.
+   * close spellings (`instalation` finds `installation`) at a lower weight, and every word also
+   * finds its synonyms.
    */
   search(query: string, limit = 20): LexicalHit[] {
     const tokens = tokenize(query);
@@ -65,13 +82,16 @@ export class LexicalIndex {
     const unique = [...new Set(tokens)];
     unique.forEach((token, i) => {
       add(token, 1);
+      const synonyms = (this.synonyms.get(token) ?? []).filter((term) => term !== token);
+      for (const term of synonyms) add(term, 0.8);
       const isLast = i === unique.length - 1 && query.trimEnd().length === query.length;
       let prefixed: string[] = [];
       if (isLast && token.length >= 2) {
         prefixed = this.prefixed(token).filter((term) => term !== token);
         for (const term of prefixed) add(term, 0.6);
       }
-      if (!this.postings.has(token) && !prefixed.length) {
+      const known = this.postings.has(token) || synonyms.some((term) => this.postings.has(term));
+      if (!known && !prefixed.length) {
         for (const term of this.similar(token)) add(term, 0.5);
       }
     });

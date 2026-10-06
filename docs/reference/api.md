@@ -14,6 +14,7 @@ Loads `cosine-index.json` and the vector file next to it and returns a `Cosine` 
 | `loadModel` | `lazy` | `lazy` loads the model on `warmup()` or the first search (not when the browser asks to save data), `eager` right away, `never` not at all |
 | `embedder` | from the index | Your own `Embedder`, or `false` for keyword search only |
 | `minSimilarity` | from the index | Drop semantic hits below this cosine similarity |
+| `synonyms` | from the index | Synonym groups, e.g. `[["login", "sign-in"]]`, replacing the ones stored in the index |
 | `fetch` | `globalThis.fetch` | Custom fetch |
 
 ### `Cosine`
@@ -45,12 +46,12 @@ interface SearchResult {
 
 | Function | |
 |---|---|
-| `buildIndex(documents, options)` | Chunks and embeds `{ id, url, title, content }` documents. Returns `{ manifest, vectors }` |
+| `buildIndex(documents, options)` | Chunks and embeds `{ id, url, title, content }` documents. Returns `{ manifest, vectors, reused, embedded }`. `synonyms` stores synonym groups in the index, `previous` (`{ manifest, vectors }` of the last build) reuses the vectors of unchanged sections |
 | `transformersEmbedder(options)` | Embedder on top of transformers.js. `model` (`english`, `multilingual` or an id), `dtype` (`q8`), `device`, `queryPrefix`, `passagePrefix`, `load`, `onProgress` |
 | `chunkMarkdown(document, options)` | Splits one Markdown page into chunks |
 | `htmlToMarkdown(html)` | Extracts the main content of an HTML page |
 
-From `@sweberdev/cosine/node`: `readDocs(dir, options)`, `writeIndex(index, outDir)`, `buildDirectory(dir, outDir, options)`, `loadIndexFile(path, options)`.
+From `@sweberdev/cosine/node`: `readDocs(dir, options)`, `writeIndex(index, outDir)`, `buildDirectory(dir, outDir, options)`, `readIndex(dir)` (the last build, for `previous`), `loadIndexFile(path, options)`.
 
 ## Custom embedder
 

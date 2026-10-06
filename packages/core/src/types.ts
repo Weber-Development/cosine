@@ -49,6 +49,8 @@ export interface IndexManifest {
   /** File name of the vectors next to the manifest, or `null` for a lexical-only index. */
   vectors: string | null;
   chunks: Chunk[];
+  /** Groups of words that mean the same, e.g. `[["login", "sign-in"]]`. */
+  synonyms?: string[][];
   createdAt: string;
 }
 

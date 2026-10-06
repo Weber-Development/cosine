@@ -103,10 +103,44 @@ describe("VectorStore", () => {
   });
 });
 
+describe("synonyms", () => {
+  const index = new LexicalIndex(["sign in with your account", "billing and invoices"], {
+    synonyms: [["login", "Sign-In", "anmelden"]],
+  });
+
+  it("finds a section through a synonym, ranked below exact words", () => {
+    expect(index.search("login ")[0]?.id).toBe(0);
+    expect(index.search("anmelden ")[0]?.id).toBe(0);
+    const exact = index.search("sign ")[0]?.score ?? 0;
+    const synonym = index.search("login ")[0]?.score ?? 0;
+    expect(synonym).toBeGreaterThan(0);
+    expect(synonym).toBeLessThan(exact);
+  });
+
+  it("does not guess spellings when a synonym is in the index", () => {
+    const fuzzy = new LexicalIndex(["login form", "logic"], {
+      synonyms: [["logon", "login"]],
+    });
+    expect(fuzzy.search("logon ").map((h) => h.id)).toEqual([0]);
+  });
+
+  it("restores stored vectors for reuse", () => {
+    const store = VectorStore.fromVectors([new Float32Array([3, 4]), new Float32Array([0, 2])]);
+    const again = VectorStore.fromVectors([store.vector(0), store.vector(1)]);
+    expect([...again.toBuffer().slice(20)]).toEqual([...store.toBuffer().slice(20)]);
+    expect(again.vector(1)[1]).toBeCloseTo(1, 5);
+    expect(store.vector(0)[0]).toBeCloseTo(0.6, 2);
+    expect(() => store.vector(2)).toThrow(RangeError);
+  });
+});
+
 describe("fuse / siblingUrl", () => {
   it("rewards results found by both rankings", () => {
     const fused = fuse([{ id: 1 }, { id: 2 }], [{ id: 3 }, { id: 2 }]);
-    expect(fused[0]).toMatchObject({ id: 2, matchedBy: ["lexical", "semantic"] });
+    expect(fused[0]).toMatchObject({
+      id: 2,
+      matchedBy: ["lexical", "semantic"],
+    });
   });
 
   it("resolves the vector file next to the manifest", () => {

@@ -31,6 +31,36 @@ The model sees each chunk together with its page title and heading path, e.g. `B
 | `--lexical-only` | | No vectors, keyword search only |
 | `--exclude <path>` | | Skip files whose relative path starts with this (repeatable) |
 | `--max-chars <n>` | `1200` | Soft maximum chunk length |
+| `--synonyms <file>` | | JSON file with synonym groups, see [Synonyms](#synonyms) |
+| `--incremental` | | Reuse the vectors of the index in `--out`, embed only new and changed sections |
+
+## Synonyms
+
+Keyword search only finds the words that are on the page. A synonym list helps with the words your visitors use instead, especially before the model has loaded or when it never loads:
+
+```json
+{
+  "login": ["sign-in", "anmelden"],
+  "invoice": ["bill", "receipt", "rechnung"]
+}
+```
+
+```bash
+npx cosine build docs --synonyms synonyms.json
+```
+
+Every word in a group finds the others. A synonym ranks a little below the exact word. The list is stored in `cosine-index.json`, so the browser needs nothing else. An array of groups (`[["login", "sign-in", "anmelden"]]`) works too.
+
+## Incremental builds
+
+`--incremental` reads the index already in `--out` and embeds only sections whose text changed. A typo fix on one page then takes a second instead of embedding the whole site again. When the index was built with another model or passage prefix, or there is none yet, Cosine embeds everything and says so.
+
+```bash
+npx cosine build docs --out public/cosine --incremental
+# Reused 412 sections, embedded 3
+```
+
+Keep the output directory between CI runs (cache it like the model) to profit in CI too.
 
 ## In CI
 

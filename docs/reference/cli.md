@@ -20,6 +20,8 @@ cosine search <index-dir> <query>     Try a query against a built index
 | `--max-chars <n>` | `1200` | Soft maximum chunk length |
 | `--query-prefix <s>` | | Prefix for queries (custom E5/BGE models) |
 | `--passage-prefix <s>` | | Prefix for passages (custom E5/BGE models) |
+| `--synonyms <file>` | | JSON file with synonym groups, see [Building the index](../guides/indexing.md#synonyms) |
+| `--incremental` | | Reuse the vectors of the index in `--out`, embed only new and changed sections |
 
 Writes `cosine-index.json` (chunks and settings) and `cosine-vectors.bin` (int8 vectors) to the output directory.
 

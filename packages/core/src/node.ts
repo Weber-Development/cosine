@@ -66,7 +66,12 @@ export async function readDocs(
     if (ext === ".html" || ext === ".htm") {
       if (/<meta[^>]+name=["']robots["'][^>]+noindex/i.test(raw)) continue;
       const { title, markdown } = htmlToMarkdown(raw);
-      docs.push({ id: rel, url, title: title ?? fallbackTitle, content: markdown });
+      docs.push({
+        id: rel,
+        url,
+        title: title ?? fallbackTitle,
+        content: markdown,
+      });
     } else {
       docs.push({ id: rel, url, title: fallbackTitle, content: raw });
     }
@@ -98,6 +103,31 @@ export async function buildDirectory(
   const docs = await readDocs(dir, options);
   const index = await buildIndex(docs, options);
   return { index, files: await writeIndex(index, outDir) };
+}
+
+/**
+ * Reads the index in `dir` (`cosine-index.json` and its vectors) for an incremental build.
+ * Returns `null` when there is none or it cannot be read.
+ */
+export async function readIndex(
+  dir: string,
+): Promise<{ manifest: IndexManifest; vectors: VectorStore | null } | null> {
+  try {
+    const manifest = JSON.parse(
+      await readFile(join(dir, "cosine-index.json"), "utf8"),
+    ) as IndexManifest;
+    if (manifest.version !== 1 || !Array.isArray(manifest.chunks)) return null;
+    let vectors: VectorStore | null = null;
+    if (manifest.vectors) {
+      const buf = await readFile(join(dir, manifest.vectors));
+      vectors = VectorStore.fromBuffer(
+        buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer,
+      );
+    }
+    return { manifest, vectors };
+  } catch {
+    return null;
+  }
 }
 
 /** Loads an index from disk, e.g. to try queries in Node or in tests. */

@@ -1,5 +1,12 @@
 # @sweberdev/cosine-react
 
+## 0.4.0
+
+### Patch Changes
+
+- Updated dependencies [595ec72]
+  - @sweberdev/cosine@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

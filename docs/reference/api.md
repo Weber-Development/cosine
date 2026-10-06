@@ -30,6 +30,10 @@ Loads `cosine-index.json` and the vector file next to it and returns a `Cosine` 
 | `onStatus(listener)` | Subscribe to status changes, returns an unsubscribe function |
 | `chunks` | All chunks of the index |
 
+### `CosineGroup`
+
+`loadIndexes(urls, options?)` loads several indexes and returns a `CosineGroup`; `new CosineGroup(members, { weights })` groups indexes you loaded yourself. It has `search`, `searchLexical`, `facets`, `warmup`, `status`, `onStatus` and `chunks` like `Cosine`, merges results by rank, and adds `index` (position of the index) to each result. `weights` ranks an index higher. See [Several indexes](../guides/web-component.md#several-indexes).
+
 ### `SearchResult`
 
 ```ts

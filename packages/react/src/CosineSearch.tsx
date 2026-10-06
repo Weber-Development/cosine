@@ -1,12 +1,14 @@
-import type { Cosine, SearchResult } from "@sweberdev/cosine";
+import type { Cosine, CosineGroup, SearchResult } from "@sweberdev/cosine";
 import { defineCosineSearch } from "@sweberdev/cosine/element";
 import { type CSSProperties, createElement, useEffect, useRef } from "react";
 
 export interface CosineSearchProps {
-  /** URL of `cosine-index.json`. Not needed when `cosine` is set. */
-  index?: string;
+  /** URL of `cosine-index.json`, or several to search them as one. Not needed when `cosine` is set. */
+  index?: string | string[];
   /** An engine loaded with `useCosine`, shared with other components. */
-  cosine?: Cosine | null;
+  cosine?: Cosine | CosineGroup | null;
+  /** Show filter buttons per section of the site. A number sets the path segments per section. */
+  facets?: boolean | number;
   /** `en`, `de`, `fr` or `it`. Defaults to the page language. */
   lang?: string;
   placeholder?: string;
@@ -25,7 +27,7 @@ export interface CosineSearchProps {
 
 /** The `<cosine-search>` web component as a React component. Renders nothing on the server but the tag. */
 export function CosineSearch({ cosine, onSelect, loadModel, ...props }: CosineSearchProps) {
-  const ref = useRef<HTMLElement & { cosine: Cosine | null }>(null);
+  const ref = useRef<HTMLElement & { cosine: Cosine | CosineGroup | null }>(null);
 
   useEffect(() => {
     defineCosineSearch();
@@ -45,11 +47,13 @@ export function CosineSearch({ cosine, onSelect, loadModel, ...props }: CosineSe
     return () => el.removeEventListener("cosine-select", listener);
   }, [onSelect]);
 
-  const { className, limit, scope, ...rest } = props;
+  const { className, limit, scope, index, facets, ...rest } = props;
   return createElement("cosine-search", {
     ref,
     class: className,
     ...rest,
+    ...(index && { index: Array.isArray(index) ? index.join(" ") : index }),
+    ...(facets && { facets: facets === true ? "" : String(facets) }),
     ...(limit !== undefined && { limit: String(limit) }),
     ...(scope && { scope: Array.isArray(scope) ? scope.join(" ") : scope }),
     ...(loadModel && { "load-model": loadModel }),

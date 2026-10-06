@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { buildIndex } from "../src/build";
 import { parseBoost, parseSynonyms, run } from "../src/cli";
+import { CosineGroup, loadIndexes } from "../src/group";
 import { buildDirectory, fileUrl, loadIndexFile, readDocs, readIndex } from "../src/node";
 import { Cosine, loadIndex } from "../src/search";
 import { cosineSimilarity, VectorStore } from "../src/vectors";
@@ -211,6 +212,70 @@ describe("Cosine", () => {
           embedder: toyEmbedder("other"),
         }),
     ).toThrow(/built with toy-model/);
+  });
+});
+
+describe("CosineGroup", () => {
+  const blog = [
+    { id: "x", url: "/blog/x", title: "Invoices explained", content: "## Why\n\nInvoices matter." },
+    { id: "y", url: "/blog/y", title: "Hello", content: "A first post about plans." },
+  ];
+
+  async function group(options: ConstructorParameters<typeof CosineGroup>[1] = {}) {
+    const { cosine: docs } = await engine();
+    const { manifest } = await buildIndex(blog);
+    return { docs, group: new CosineGroup([docs, new Cosine({ manifest })], options) };
+  }
+
+  it("merges the results of several indexes by rank", async () => {
+    const { group: g } = await group();
+    const results = g.searchLexical("invoices", { limit: 10 });
+    const urls = results.map((r) => r.chunk.url);
+    expect(urls).toContain("/docs/guides/billing#invoices");
+    expect(urls).toContain("/blog/x#why");
+    expect(new Set(results.map((r) => r.index))).toEqual(new Set([0, 1]));
+    expect(g.chunks.length).toBeGreaterThan(4);
+    expect((await g.search("invoices", { mode: "lexical", limit: 1 })).length).toBe(1);
+  });
+
+  it("weights an index higher and reports a combined status", async () => {
+    const { group: heavy } = await group({ weights: [1, 5] });
+    expect(heavy.searchLexical("invoices", { limit: 5 })[0]?.index).toBe(1);
+    expect(heavy.status).toBe("lexical");
+    expect(heavy.semantic).toBe(true);
+    const statuses: string[] = [];
+    heavy.onStatus((s) => statuses.push(s));
+    await heavy.warmup();
+    expect(statuses).toEqual(["loading-model", "ready"]);
+    expect(heavy.status).toBe("ready");
+    expect(() => new CosineGroup([])).toThrow(/at least one/);
+  });
+
+  it("counts facets across indexes and loads several URLs", async () => {
+    const { group: g } = await group();
+    expect(await g.facets("invoices", { mode: "lexical" })).toEqual([
+      { path: "/blog", count: 1 },
+      { path: "/docs", count: 1 },
+    ]);
+    const out = await mkdtemp(join(tmpdir(), "cosine-group-"));
+    await run(
+      ["build", DOCS, "--out", join(out, "a"), "--lexical-only", "--base-url", "/docs"],
+      () => {},
+    );
+    await run(
+      ["build", DOCS, "--out", join(out, "b"), "--lexical-only", "--base-url", "/more"],
+      () => {},
+    );
+    const fakeFetch = (async (url: string) =>
+      new Response(await readFile(join(out, url.replace("/", ""))))) as unknown as typeof fetch;
+    const loaded = await loadIndexes(["/a/cosine-index.json", "/b/cosine-index.json"], {
+      fetch: fakeFetch,
+      embedder: false,
+    });
+    expect(loaded.members).toHaveLength(2);
+    expect(loaded.searchLexical("invoices", { limit: 10 }).map((r) => r.chunk.url)).toEqual(
+      expect.arrayContaining(["/docs/guides/billing#invoices", "/more/guides/billing#invoices"]),
+    );
   });
 });
 

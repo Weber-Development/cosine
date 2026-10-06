@@ -7,6 +7,10 @@ export interface SearchTexts {
   loadingModel: string;
   modelReady: string;
   modelFailed: string;
+  /** Filter button that shows every section. */
+  all: string;
+  /** Label of the group of filter buttons. */
+  sections: string;
 }
 
 export const TEXTS: Record<"en" | "de" | "fr" | "it", SearchTexts> = {
@@ -18,6 +22,8 @@ export const TEXTS: Record<"en" | "de" | "fr" | "it", SearchTexts> = {
     loadingModel: "Loading smart search…",
     modelReady: "Smart search ready",
     modelFailed: "Keyword search only",
+    all: "All",
+    sections: "Filter by section",
   },
   de: {
     label: "Dokumentation durchsuchen",
@@ -27,6 +33,8 @@ export const TEXTS: Record<"en" | "de" | "fr" | "it", SearchTexts> = {
     loadingModel: "Intelligente Suche wird geladen…",
     modelReady: "Intelligente Suche bereit",
     modelFailed: "Nur Stichwortsuche",
+    all: "Alle",
+    sections: "Nach Bereich filtern",
   },
   fr: {
     label: "Rechercher dans la documentation",
@@ -36,6 +44,8 @@ export const TEXTS: Record<"en" | "de" | "fr" | "it", SearchTexts> = {
     loadingModel: "Chargement de la recherche intelligente…",
     modelReady: "Recherche intelligente prête",
     modelFailed: "Recherche par mots-clés uniquement",
+    all: "Tout",
+    sections: "Filtrer par section",
   },
   it: {
     label: "Cerca nella documentazione",
@@ -45,6 +55,8 @@ export const TEXTS: Record<"en" | "de" | "fr" | "it", SearchTexts> = {
     loadingModel: "Caricamento della ricerca intelligente…",
     modelReady: "Ricerca intelligente pronta",
     modelFailed: "Solo ricerca per parole chiave",
+    all: "Tutto",
+    sections: "Filtra per sezione",
   },
 };
 

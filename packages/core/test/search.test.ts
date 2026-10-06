@@ -79,6 +79,31 @@ describe("Cosine", () => {
     expect(hybrid.every((r) => r.chunk.url.startsWith("/docs/"))).toBe(true);
   });
 
+  it("counts results per section of the site", async () => {
+    const { cosine } = await engine();
+    const byPage = await cosine.facets("team invoices", { mode: "lexical", depth: 2 });
+    expect(byPage.length).toBeGreaterThan(0);
+    expect(byPage.every((f) => f.path.startsWith("/docs/"))).toBe(true);
+    const sorted = [...byPage].sort((a, b) => b.count - a.count || a.path.localeCompare(b.path));
+    expect(byPage).toEqual(sorted);
+
+    const top = await cosine.facets("team invoices", { mode: "lexical" });
+    expect(top.map((f) => f.path)).toEqual(["/docs"]);
+    expect(top[0]?.count).toBe(byPage.reduce((n, f) => n + f.count, 0));
+
+    const scoped = await cosine.facets("team invoices", {
+      mode: "lexical",
+      depth: 2,
+      scope: "/docs/guides/billing",
+    });
+    expect(scoped.map((f) => f.path)).toEqual(["/docs/guides"]);
+    expect(await cosine.facets("zzzzqq", { mode: "lexical" })).toEqual([]);
+    // the paths work as scope
+    const first = byPage[0] as { path: string; count: number };
+    const inFacet = cosine.searchLexical("team invoices", { scope: first.path, limit: 50 });
+    expect(inFacet).toHaveLength(first.count);
+  });
+
   it("finds pages by meaning once the model is ready", async () => {
     const { cosine } = await engine();
     expect(cosine.searchLexical("erase app")).toEqual([]);

@@ -11,6 +11,20 @@ import type {
 } from "./types";
 import { VectorStore } from "./vectors";
 
+export interface Facet {
+  /** Path prefix, e.g. `/docs/api`. Pass it as `scope` to search only there. */
+  path: string;
+  /** Number of results below this path. */
+  count: number;
+}
+
+export interface FacetOptions extends Omit<SearchOptions, "limit" | "groupByPage"> {
+  /** Number of path segments that form a facet. Default 1: `/docs/api/auth` counts for `/docs`. */
+  depth?: number;
+  /** Results to count, from the top of the ranking. Default 200. */
+  limit?: number;
+}
+
 export interface CosineOptions {
   manifest: IndexManifest;
   /** Vectors of the chunks. Without them Cosine searches lexically only. */
@@ -175,6 +189,25 @@ export class Cosine {
     }
     const lexical = this.lexical.search(query, depth);
     return this.finish(query, fuse(lexical, semantic), options);
+  }
+
+  /**
+   * Counts the results of a query per section of the site, e.g. `/docs/guides` 12, `/docs/api` 5,
+   * so a search page can offer filters. Counts the top `limit` results, most results first. Use a
+   * facet's `path` as `scope` to search only there.
+   */
+  async facets(query: string, options: FacetOptions = {}): Promise<Facet[]> {
+    const { depth = 1, limit = 200, ...rest } = options;
+    const results = await this.search(query, { ...rest, limit });
+    const counts = new Map<string, number>();
+    for (const { chunk } of results) {
+      const parts = pathOf(chunk.url).split("/").filter(Boolean).slice(0, Math.max(1, depth));
+      const path = `/${parts.join("/")}`;
+      counts.set(path, (counts.get(path) ?? 0) + 1);
+    }
+    return [...counts]
+      .map(([path, count]) => ({ path, count }))
+      .sort((a, b) => b.count - a.count || a.path.localeCompare(b.path));
   }
 
   private embedQuery(query: string): Promise<Float32Array> {

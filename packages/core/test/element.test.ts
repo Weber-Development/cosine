@@ -6,7 +6,7 @@ import { Cosine } from "../src/search";
 
 defineCosineSearch();
 
-async function mount(lang?: string) {
+async function mount(lang?: string, attrs: Record<string, string> = {}, withBlog = false) {
   const { manifest } = await buildIndex([
     {
       id: "a",
@@ -15,9 +15,20 @@ async function mount(lang?: string) {
       content: "## Invoices\n\nInvoices arrive monthly.\n\n## Plans\n\nChange your plan.",
     },
     { id: "b", url: "/docs/b", title: "Install", content: "Run npm install." },
+    ...(withBlog
+      ? [
+          {
+            id: "c",
+            url: "/blog/c",
+            title: "Invoices news",
+            content: "## Invoices\n\nNew invoices layout.",
+          },
+        ]
+      : []),
   ]);
   const el = document.createElement("cosine-search");
   if (lang) el.setAttribute("lang", lang);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   el.cosine = new Cosine({ manifest });
   document.body.append(el);
   const root = el.shadowRoot as ShadowRoot;
@@ -86,5 +97,36 @@ describe("<cosine-search>", () => {
       new KeyboardEvent("keydown", { key: "/", bubbles: true, cancelable: true }),
     );
     expect(root.activeElement).toBe(input);
+  });
+
+  it("offers filter buttons per section with facets", async () => {
+    const { root, input, type } = await mount("en", { facets: "" }, true);
+    await type("invoices");
+    await new Promise((r) => setTimeout(r, 0));
+    const bar = root.querySelector(".facets") as HTMLElement;
+    expect(bar.hidden).toBe(false);
+    const buttons = [...bar.querySelectorAll("button")];
+    expect(buttons.map((b) => b.textContent)).toEqual(["All (2)", "blog (1)", "docs (1)"]);
+    expect(buttons[0]?.getAttribute("aria-pressed")).toBe("true");
+    expect(root.querySelectorAll('[role="option"]')).toHaveLength(2);
+
+    buttons[1]?.click();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(root.querySelectorAll('[role="option"]')).toHaveLength(1);
+    expect(root.querySelector('[role="option"] a')?.getAttribute("href")).toBe("/blog/c#invoices");
+    const after = [...root.querySelectorAll(".facets button")];
+    expect(after[1]?.getAttribute("aria-pressed")).toBe("true");
+    expect(after).toHaveLength(3);
+    expect(input.getAttribute("aria-expanded")).toBe("true");
+
+    await type("");
+    expect((root.querySelector(".facets") as HTMLElement).hidden).toBe(true);
+  });
+
+  it("hides the filter buttons when there is a single section", async () => {
+    const { root, type } = await mount("de", { facets: "" });
+    await type("npm install");
+    await new Promise((r) => setTimeout(r, 0));
+    expect((root.querySelector(".facets") as HTMLElement).hidden).toBe(true);
   });
 });

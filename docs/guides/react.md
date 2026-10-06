@@ -29,7 +29,7 @@ export function DocsSearch() {
 }
 ```
 
-`CosineSearch` renders the [`<cosine-search>`](web-component.md) web component, so attributes, styling and accessibility are the same. `scope` takes a string or an array, e.g. `scope={["/docs/api", "/docs/guides"]}`.
+`CosineSearch` renders the [`<cosine-search>`](web-component.md) web component, so attributes, styling and accessibility are the same. `scope` takes a string or an array, e.g. `scope={["/docs/api", "/docs/guides"]}`, and so does `index`, to search several indexes as one: `index={["/docs/cosine-index.json", "/blog/cosine-index.json"]}`. `facets` shows the filter buttons per section.
 
 ## Hooks for your own UI
 

@@ -1,3 +1,4 @@
+import { type CosineGroup, loadIndexes } from "./group";
 import { type Cosine, loadIndex } from "./search";
 import { highlightParts } from "./snippet";
 import { type SearchTexts, textsFor } from "./texts";
@@ -16,9 +17,11 @@ input:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
 input::-webkit-search-cancel-button { cursor: pointer; }
 kbd { position: absolute; right: .6em; top: 50%; transform: translateY(-50%); font: inherit; font-size: .75em;
   color: var(--_muted); border: 1px solid var(--_border); border-radius: 4px; padding: 0 .35em; pointer-events: none; }
-[role="listbox"] { position: absolute; z-index: var(--cosine-z, 50); left: 0; right: 0; margin: .3em 0 0; padding: .3em;
-  list-style: none; background: var(--_bg); border: 1px solid var(--_border); border-radius: var(--cosine-radius, 8px);
-  box-shadow: 0 8px 24px rgb(0 0 0 / .12); max-height: var(--cosine-max-height, 60vh); overflow: auto; }
+.panel { position: absolute; z-index: var(--cosine-z, 50); left: 0; right: 0; margin: .3em 0 0; padding: .3em;
+  background: var(--_bg); border: 1px solid var(--_border); border-radius: var(--cosine-radius, 8px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / .12); }
+.panel[hidden] { display: none; }
+[role="listbox"] { margin: 0; padding: 0; list-style: none; max-height: var(--cosine-max-height, 60vh); overflow: auto; }
 [role="listbox"][hidden] { display: none; }
 [role="option"] a { display: block; padding: .55em .7em; border-radius: calc(var(--cosine-radius, 8px) - 2px);
   color: inherit; text-decoration: none; }
@@ -26,11 +29,19 @@ kbd { position: absolute; right: .6em; top: 50%; transform: translateY(-50%); fo
 .path { display: block; font-weight: 600; }
 .snippet { display: block; font-size: .875em; color: var(--_muted); margin-top: .15em; }
 mark { background: none; color: var(--_accent); font-weight: 600; }
+.facets { display: flex; flex-wrap: wrap; gap: .4em; margin: 0; padding: .3em .3em .1em; list-style: none; }
+.facets[hidden] { display: none; }
+.facets button { font: inherit; font-size: .8em; color: inherit; background: none; cursor: pointer;
+  border: 1px solid var(--_border); border-radius: 999px; padding: .15em .7em; }
+.facets button[aria-pressed="true"] { background: var(--_accent); border-color: var(--_accent); color: var(--_bg); }
+.facets button:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
 .empty, .status { padding: .55em .7em; color: var(--_muted); font-size: .875em; }
 .status { padding: .3em 0 0; min-height: 1.2em; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (prefers-reduced-motion: no-preference) { [role="option"] a { transition: background .1s; } }
 `;
+
+type Engine = Cosine | CosineGroup;
 
 let counter = 0;
 
@@ -52,7 +63,8 @@ export interface CosineResultsDetail {
  * `<cosine-search index="/cosine/cosine-index.json">`: an accessible search field (ARIA combobox)
  * with results while typing.
  *
- * Attributes: `index` (URL of `cosine-index.json`), `lang` (`en`, `de`, `fr`, `it`), `limit`,
+ * Attributes: `index` (URL of `cosine-index.json`, or several separated by spaces to search them
+ * as one), `facets` (show filter buttons per section, with `facets="2"` for two path segments), `lang` (`en`, `de`, `fr`, `it`), `limit`,
  * `placeholder`, `shortcut` (`/` or `mod+k`, default `/`), `mode` (`hybrid`, `lexical`),
  * `load-model` (`lazy`, `eager`, `never`), `scope` (space-separated URL paths, e.g. `/docs/api`, to
  * search only part of the site). Styling via `--cosine-*` custom properties and `::part`.
@@ -63,8 +75,9 @@ export interface CosineResultsDetail {
 export class CosineSearchElement extends HTMLElement {
   static observedAttributes = ["index", "lang", "placeholder"];
 
-  private engine: Cosine | null = null;
-  private loading: Promise<Cosine> | null = null;
+  private engine: Engine | null = null;
+  private loading: Promise<Engine> | null = null;
+  private facet: string | null = null;
   private results: SearchResult[] = [];
   private query = "";
   private active = -1;
@@ -73,6 +86,8 @@ export class CosineSearchElement extends HTMLElement {
   private readonly root: ShadowRoot;
   private readonly input: HTMLInputElement;
   private readonly list: HTMLUListElement;
+  private readonly facetBar: HTMLDivElement;
+  private readonly panel: HTMLDivElement;
   private readonly live: HTMLDivElement;
   private readonly statusLine: HTMLDivElement;
   private readonly onKeydownGlobal = (e: KeyboardEvent) => this.handleShortcut(e);
@@ -87,11 +102,16 @@ export class CosineSearchElement extends HTMLElement {
     aria-autocomplete="list" aria-expanded="false" aria-controls="${this.uid}-list" />
   <kbd part="shortcut" aria-hidden="true"></kbd>
 </div>
-<ul part="results" role="listbox" id="${this.uid}-list" hidden></ul>
+<div class="panel" part="panel" hidden>
+  <div class="facets" part="facets" role="group" hidden></div>
+  <ul part="results" role="listbox" id="${this.uid}-list" hidden></ul>
+</div>
 <div class="status" part="status" aria-hidden="true"></div>
 <div class="sr" role="status" aria-live="polite"></div>`;
     this.input = this.root.querySelector("input") as HTMLInputElement;
     this.list = this.root.querySelector("ul") as HTMLUListElement;
+    this.facetBar = this.root.querySelector(".facets") as HTMLDivElement;
+    this.panel = this.root.querySelector(".panel") as HTMLDivElement;
     this.statusLine = this.root.querySelector(".status") as HTMLDivElement;
     this.live = this.root.querySelector('[role="status"]') as HTMLDivElement;
 
@@ -108,11 +128,11 @@ export class CosineSearchElement extends HTMLElement {
   }
 
   /** The search engine. Set it to use an index you loaded yourself. */
-  get cosine(): Cosine | null {
+  get cosine(): Engine | null {
     return this.engine;
   }
 
-  set cosine(value: Cosine | null) {
+  set cosine(value: Engine | null) {
     this.engine = value;
     this.loading = value ? Promise.resolve(value) : null;
     if (value) this.watch(value);
@@ -153,12 +173,16 @@ export class CosineSearchElement extends HTMLElement {
     this.list.setAttribute("aria-label", this.getAttribute("label") ?? this.texts.label);
   }
 
-  private ensure(): Promise<Cosine> {
+  private ensure(): Promise<Engine> {
     if (this.loading) return this.loading;
-    const url = this.getAttribute("index");
-    if (!url) return Promise.reject(new Error("cosine-search: missing index attribute"));
+    const urls = (this.getAttribute("index") ?? "").split(/\s+/).filter(Boolean);
+    if (!urls.length) return Promise.reject(new Error("cosine-search: missing index attribute"));
     const loadModel = (this.getAttribute("load-model") ?? "lazy") as "lazy" | "eager" | "never";
-    this.loading = loadIndex(url, { loadModel }).then((c) => {
+    const loaded =
+      urls.length === 1
+        ? loadIndex(urls[0] as string, { loadModel })
+        : loadIndexes(urls, { loadModel });
+    this.loading = loaded.then((c) => {
       this.engine = c;
       this.watch(c);
       return c;
@@ -170,7 +194,7 @@ export class CosineSearchElement extends HTMLElement {
     return this.loading;
   }
 
-  private watch(c: Cosine) {
+  private watch(c: Engine) {
     c.onStatus((status) => {
       this.statusLine.textContent =
         status === "loading-model"
@@ -189,18 +213,59 @@ export class CosineSearchElement extends HTMLElement {
     const query = this.input.value;
     const seq = ++this.seq;
     if (!query.trim()) {
+      this.facet = null;
+      this.facetBar.hidden = true;
       this.render([]);
       return;
     }
     const engine = await this.ensure();
     const limit = Number(this.getAttribute("limit") ?? 8);
     const mode = this.getAttribute("mode") === "lexical" ? "lexical" : "hybrid";
-    const scope = this.getAttribute("scope")?.split(/\s+/).filter(Boolean);
+    const base = this.getAttribute("scope")?.split(/\s+/).filter(Boolean);
+    const scope = this.facet ? [this.facet] : base;
     // Lexical results right away, then the hybrid ranking when it differs.
     if (seq === this.seq) this.render(engine.searchLexical(query, { limit, scope }), query);
+    if (this.getAttribute("facets") !== null) void this.updateFacets(engine, query, base, seq);
     if (mode === "lexical" || engine.status !== "ready") return;
     const results = await engine.search(query, { limit, mode, scope });
     if (seq === this.seq) this.render(results, query);
+  }
+
+  /** Filter buttons with the number of results per section, for the query without the filter. */
+  private async updateFacets(
+    engine: Engine,
+    query: string,
+    scope: string[] | undefined,
+    seq: number,
+  ) {
+    const depth = Math.max(1, Number(this.getAttribute("facets")) || 1);
+    const facets = await engine.facets(query, { depth, mode: "lexical", scope });
+    if (seq !== this.seq) return;
+    this.facetBar.replaceChildren();
+    // A single section needs no filter, unless one is chosen.
+    if (facets.length < 2 && !this.facet) {
+      this.facetBar.hidden = true;
+      return;
+    }
+    const total = facets.reduce((n, f) => n + f.count, 0);
+    const entries: Array<[string | null, string]> = [
+      [null, `${this.texts.all} (${total})`],
+      ...facets.map((f): [string, string] => [f.path, `${f.path.slice(1)} (${f.count})`]),
+    ];
+    this.facetBar.setAttribute("aria-label", this.texts.sections);
+    for (const [path, label] of entries) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.setAttribute("aria-pressed", String(path === this.facet));
+      button.addEventListener("mousedown", (e) => e.preventDefault());
+      button.addEventListener("click", () => {
+        this.facet = path;
+        void this.update();
+      });
+      this.facetBar.append(button);
+    }
+    this.facetBar.hidden = false;
   }
 
   private render(results: SearchResult[], query = "") {
@@ -264,6 +329,7 @@ export class CosineSearchElement extends HTMLElement {
 
   private open(open: boolean) {
     this.list.hidden = !open;
+    this.panel.hidden = !open;
     this.input.setAttribute("aria-expanded", String(open));
   }
 

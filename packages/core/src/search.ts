@@ -210,16 +210,7 @@ export class Cosine {
    */
   async facets(query: string, options: FacetOptions = {}): Promise<Facet[]> {
     const { depth = 1, limit = 200, ...rest } = options;
-    const results = await this.search(query, { ...rest, limit });
-    const counts = new Map<string, number>();
-    for (const { chunk } of results) {
-      const parts = pathOf(chunk.url).split("/").filter(Boolean).slice(0, Math.max(1, depth));
-      const path = `/${parts.join("/")}`;
-      counts.set(path, (counts.get(path) ?? 0) + 1);
-    }
-    return [...counts]
-      .map(([path, count]) => ({ path, count }))
-      .sort((a, b) => b.count - a.count || a.path.localeCompare(b.path));
+    return countFacets(await this.search(query, { ...rest, limit }), depth);
   }
 
   private embedQuery(query: string): Promise<Float32Array> {
@@ -363,6 +354,19 @@ export function siblingUrl(url: string, file: string): string {
   if (/^[a-z][a-z\d+.-]*:/i.test(url)) return new URL(file, url).href;
   const path = url.replace(/[?#].*$/, "");
   return path.slice(0, path.lastIndexOf("/") + 1) + file;
+}
+
+/** Counts results per path prefix of `depth` segments, most results first. */
+export function countFacets(results: Array<{ chunk: { url: string } }>, depth = 1): Facet[] {
+  const counts = new Map<string, number>();
+  for (const { chunk } of results) {
+    const parts = pathOf(chunk.url).split("/").filter(Boolean).slice(0, Math.max(1, depth));
+    const path = `/${parts.join("/")}`;
+    counts.set(path, (counts.get(path) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([path, count]) => ({ path, count }))
+    .sort((a, b) => b.count - a.count || a.path.localeCompare(b.path));
 }
 
 /** Path of a URL without origin, query and hash. */

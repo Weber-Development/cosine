@@ -1,6 +1,6 @@
 ---
 title: Cosine Pro
-description: A Vite plugin that builds the index with every build, and search insights that show what your docs are missing.
+description: Plugins that build the index with every build (Vite, Next.js), and search insights that show what your docs are missing.
 ---
 
 Cosine Pro adds what you need once search runs on more than one site: the index builds itself, and you see what people look for and do not find.
@@ -8,7 +8,8 @@ Cosine Pro adds what you need once search runs on more than one site: the index 
 | Package | What it does |
 |---|---|
 | [`@weber-development/cosine-vite`](vite.md) | Builds the index in every Vite build (Astro, VitePress, SvelteKit, Nuxt), serves it in dev, rebuilds on change and re-embeds only the sections that changed |
-| [`@weber-development/cosine-insights`](insights.md) | Records searches without tracking people and reports queries without results, results nobody opened and the most searched topics |
+| [`@weber-development/cosine-next`](next.md) | Builds the index from the pages `next build` has prerendered and keeps the last index in `.next/cache`, so CI rebuilds embed only what changed |
+| [`@weber-development/cosine-insights`](insights.md) | Records searches without tracking people and reports queries without results, results nobody opened, the most searched topics and how they change from period to period |
 
 ## Licence and plans
 
@@ -25,5 +26,5 @@ The packages are delivered through GitHub Packages. After purchase you get read 
 
 ```sh
 npm i @sweberdev/cosine @huggingface/transformers @weber-development/cosine-insights
-npm i -D @weber-development/cosine-vite
+npm i -D @weber-development/cosine-vite   # or cosine-next for Next.js
 ```

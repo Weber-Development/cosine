@@ -1,5 +1,11 @@
 # @sweberdev/cosine
 
+## 0.6.0
+
+### Minor Changes
+
+- f33b3ab: Search syntax and boosting. Queries accept `"exact phrases"` and `-excluded` words in every mode, also for the semantic ranking. `cosine build --boost /docs/api=1.5 --boost /blog=0.7` stores ranking weights per URL path in the index (`BuildOptions.boost`, `CosineOptions.boost`). New exports: `parseQuery`, `LexicalIndex#constraints`.
+
 ## 0.5.0
 
 ### Minor Changes

@@ -42,6 +42,21 @@ The report lists:
 
 `--out insights.md` writes Markdown, e.g. for a monthly issue. `--out insights.csv` (or `--format csv`) writes the query lists as one table for a spreadsheet or your ticket system, with the columns `list` (`no-results`, `no-clicks`, `top`), `query`, `searches`, `clicks` and `results`. From code: `analyze(events)`, `renderMarkdown(report)`, `renderHtml(report)`, `renderCsv(report)`.
 
+## 4. See whether it gets better
+
+```bash
+npx cosine-insights trends --log searches.ndjson --out trends.html
+```
+
+`trends` compares the last 28 days (`--days <n>` changes the length) with the 28 days before:
+
+- **New gaps:** queries that found nothing in the last period and were not a problem before. These are the pages to write next.
+- **Resolved gaps:** queries that found nothing before and now find something or get opened. This is the proof that your fixes work.
+- **Rising:** queries searched clearly more often than before.
+- **By week:** searches, searches without results and clicks per week, as a chart in the HTML report.
+
+`--out trends.md` writes Markdown for a monthly issue, `--out trends.csv` the weekly series (`week,searches,no_results,clicks`). The log needs timestamps, which the handler adds. From code: `analyzeTrends(events, { days })`, `renderTrendsHtml(trends)`, `renderTrendsMarkdown(trends)`, `renderTrendsCsv(trends)`.
+
 ## Privacy
 
 - Events go to your own server, never to us or a third party.

@@ -50,7 +50,7 @@ describe("<cosine-search>", () => {
     const options = root.querySelectorAll('[role="option"]');
     expect(options).toHaveLength(1);
     expect(input.getAttribute("aria-expanded")).toBe("true");
-    expect(options[0]?.querySelector("a")?.getAttribute("href")).toBe("/docs/a#invoices");
+    expect(options[0]?.getAttribute("href")).toBe("/docs/a#invoices");
     expect(options[0]?.querySelector("mark")?.textContent).toBe("Invoices");
     expect(root.querySelector('[role="status"]')?.textContent).toBe("1 results");
   });
@@ -113,7 +113,7 @@ describe("<cosine-search>", () => {
     buttons[1]?.click();
     await new Promise((r) => setTimeout(r, 0));
     expect(root.querySelectorAll('[role="option"]')).toHaveLength(1);
-    expect(root.querySelector('[role="option"] a')?.getAttribute("href")).toBe("/blog/c#invoices");
+    expect(root.querySelector('[role="option"]')?.getAttribute("href")).toBe("/blog/c#invoices");
     const after = [...root.querySelectorAll(".facets button")];
     expect(after[1]?.getAttribute("aria-pressed")).toBe("true");
     expect(after).toHaveLength(3);

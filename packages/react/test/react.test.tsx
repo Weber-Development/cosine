@@ -53,7 +53,7 @@ describe("<CosineSearch>", () => {
       input.dispatchEvent(new Event("input"));
       await new Promise((r) => setTimeout(r, 0));
     });
-    ((el.shadowRoot as ShadowRoot).querySelector('[role="option"] a') as HTMLAnchorElement).click();
+    ((el.shadowRoot as ShadowRoot).querySelector('[role="option"]') as HTMLAnchorElement).click();
     expect(onSelect).toHaveBeenCalledWith(
       expect.objectContaining({ chunk: expect.objectContaining({ url: "/b" }) }),
     );

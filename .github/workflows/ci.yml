@@ -27,6 +27,8 @@ jobs:
         with:
           path: node_modules/.pnpm/@huggingface+transformers*/node_modules/@huggingface/transformers/.cache
           key: hf-models-all-MiniLM-L6-v2
+      # The browser tests drive the built web component in Chromium (keyboard, ARIA, axe).
+      - run: pnpm --filter @sweberdev/cosine-e2e exec playwright install --with-deps chromium
       - run: pnpm test
         env:
           COSINE_E2E: "1"

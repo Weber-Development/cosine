@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cosine browser tests</title>
+  <script type="module" src="/dist/element-define.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Search</h1>
+    <p>Press / to search.</p>
+    <cosine-search id="single" index="/index/docs/cosine-index.json" shortcut="/"></cosine-search>
+    <h2>Several indexes with filters</h2>
+    <cosine-search id="multi" index="/index/docs/cosine-index.json /index/blog/cosine-index.json" facets shortcut="none"></cosine-search>
+  </main>
+</body>
+</html>

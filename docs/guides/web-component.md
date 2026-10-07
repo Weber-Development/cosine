@@ -73,6 +73,8 @@ In code, `loadIndexes(urls, { weights })` returns a `CosineGroup` with the same 
 
 The field follows the ARIA combobox pattern: arrow keys move through the results, <kbd>Enter</kbd> opens one, <kbd>Esc</kbd> closes the list and then clears the field. The number of results is announced to screen readers, matches are marked with `<mark>`, and animations respect reduced motion.
 
+Each result is a link with `role="option"`, so there is no link nested inside an option. The filter buttons are real buttons with `aria-pressed`. Every release is tested in Chromium with Playwright (keyboard, ARIA attributes, narrow screens, reduced motion) and scanned with axe-core against WCAG 2.1 AA, with the list open and the filters shown. The tests are in `packages/e2e` in the repository.
+
 ## Styling
 
 Custom properties:

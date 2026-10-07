@@ -23,9 +23,9 @@ kbd { position: absolute; right: .6em; top: 50%; transform: translateY(-50%); fo
 .panel[hidden] { display: none; }
 [role="listbox"] { margin: 0; padding: 0; list-style: none; max-height: var(--cosine-max-height, 60vh); overflow: auto; }
 [role="listbox"][hidden] { display: none; }
-[role="option"] a { display: block; padding: .55em .7em; border-radius: calc(var(--cosine-radius, 8px) - 2px);
+[role="option"] { display: block; padding: .55em .7em; border-radius: calc(var(--cosine-radius, 8px) - 2px);
   color: inherit; text-decoration: none; }
-[role="option"][aria-selected="true"] a, [role="option"] a:hover { background: color-mix(in srgb, var(--_accent) 12%, transparent); }
+[role="option"][aria-selected="true"], [role="option"]:hover { background: color-mix(in srgb, var(--_accent) 12%, transparent); }
 .path { display: block; font-weight: 600; }
 .snippet { display: block; font-size: .875em; color: var(--_muted); margin-top: .15em; }
 mark { background: none; color: var(--_accent); font-weight: 600; }
@@ -38,7 +38,7 @@ mark { background: none; color: var(--_accent); font-weight: 600; }
 .empty, .status { padding: .55em .7em; color: var(--_muted); font-size: .875em; }
 .status { padding: .3em 0 0; min-height: 1.2em; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-@media (prefers-reduced-motion: no-preference) { [role="option"] a { transition: background .1s; } }
+@media (prefers-reduced-motion: no-preference) { [role="option"] { transition: background .1s; } }
 `;
 
 type Engine = Cosine | CosineGroup;
@@ -288,11 +288,14 @@ export class CosineSearchElement extends HTMLElement {
     }
     results.forEach((result, i) => {
       const li = document.createElement("li");
-      li.id = `${this.uid}-opt-${i}`;
-      li.setAttribute("role", "option");
-      li.setAttribute("aria-selected", "false");
+      li.setAttribute("role", "presentation");
       li.setAttribute("part", "result");
+      // The link is the option itself: an option that contains a link is a nested interactive
+      // control, which screen readers handle badly.
       const a = document.createElement("a");
+      a.id = `${this.uid}-opt-${i}`;
+      a.setAttribute("role", "option");
+      a.setAttribute("aria-selected", "false");
       a.href = result.chunk.url;
       a.tabIndex = -1;
       const path = document.createElement("span");

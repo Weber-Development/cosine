@@ -40,6 +40,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm build
       - run: pnpm typecheck
+      # The browser tests drive the built web component in Chromium, see ci.yml.
+      - run: pnpm --filter @sweberdev/cosine-e2e exec playwright install --with-deps chromium
       - run: pnpm test
 
       # Written to the home directory so the version PR can never pick it up.

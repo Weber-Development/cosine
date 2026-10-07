@@ -57,6 +57,65 @@ npx cosine-insights trends --log searches.ndjson --out trends.html
 
 `--out trends.md` writes Markdown for a monthly issue, `--out trends.csv` the weekly series (`week,searches,no_results,clicks`). The log needs timestamps, which the handler adds. From code: `analyzeTrends(events, { days })`, `renderTrendsHtml(trends)`, `renderTrendsMarkdown(trends)`, `renderTrendsCsv(trends)`.
 
+## 5. Find out why a query failed
+
+```bash
+npx cosine-insights suggest --log searches.ndjson --index public/cosine --out gaps.md
+```
+
+For every query without results, `suggest` checks the index and says which of three cases it is:
+
+- **Probably a typo:** a word is not in your docs, but a similar one is. The report shows the corrected query and the page it finds. Use it to fix a link or add the word as a [synonym](../guides/indexing.md).
+- **Closest pages:** the words are known, but no page covers them together. The report lists the pages that come closest.
+- **Nothing comes close:** no page covers the topic. This is the list of pages to write.
+
+`--semantic` also looks pages up by meaning, which needs an index with vectors and `@huggingface/transformers`. `--limit`, `--min` and `--since` work as in `report`. From code, use the `suggest` entry, which needs `@sweberdev/cosine`:
+
+```ts
+import { suggestFixes, renderSuggestionsMarkdown } from "@weber-development/cosine-insights/suggest";
+```
+
+## 6. A report every week
+
+This GitHub Action runs every Monday, reads the log, and opens an issue with the trends and the gaps. Keep the log where your job can reach it, for example in a private storage bucket, and give the job its address as a secret.
+
+```yaml title=".github/workflows/search-report.yml"
+name: Search report
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: |
+          echo "@weber-development:registry=https://npm.pkg.github.com" >> .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.COSINE_PRO_TOKEN }}" >> .npmrc
+          npm i --no-save @sweberdev/cosine @weber-development/cosine-insights
+      - name: Fetch the log
+        run: curl -fsSL "${{ secrets.SEARCH_LOG_URL }}" -o searches.ndjson
+      - name: Build the report
+        run: |
+          npx cosine-insights trends --log searches.ndjson --days 7 --out trends.md
+          npx cosine-insights suggest --log searches.ndjson --index public/cosine --since "$(date -d '7 days ago' +%F)" --out gaps.md
+          cat trends.md gaps.md > report.md
+      - name: Open an issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue create --title "Search report $(date +%F)" --body-file report.md
+```
+
+`COSINE_PRO_TOKEN` is the read-only token from the [install guide](overview.md). The workflow needs your built index in `public/cosine`; if you build it in CI instead, add that step before the report. Without a server log, point `SEARCH_LOG_URL` at wherever your handler's store writes.
+
 ## Privacy
 
 - Events go to your own server, never to us or a third party.

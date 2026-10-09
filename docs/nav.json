@@ -29,7 +29,7 @@
     },
     {
       "label": "Cosine Pro",
-      "items": ["pro/overview", "pro/vite", "pro/next", "pro/migrate", "pro/insights"]
+      "items": ["pro/overview", "pro/vite", "pro/next", "pro/migrate", "pro/insights", "pro/answers"]
     }
   ]
 }

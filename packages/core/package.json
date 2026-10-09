@@ -1,6 +1,6 @@
 {
   "name": "@sweberdev/cosine",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Semantic search for documentation sites that runs entirely in the browser. Build the index once, search with keywords instantly and by meaning once the model has loaded. No server, no API key.",
   "license": "MIT",
   "author": "Seya Weber (https://github.com/sxwxbxr)",

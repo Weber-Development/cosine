@@ -1,6 +1,11 @@
 import type { Embedder, EmbedKind, ModelOptions } from "./types";
 
-/** Models that work well for documentation search. All run in the browser via transformers.js. */
+/**
+ * Models that work well for documentation search. All run in the browser via transformers.js.
+ *
+ * @experimental The set of presets and their options may change in a minor release. The keys
+ * `english` and `multilingual` stay.
+ */
 export const MODELS = {
   /** English, about 23 MB (q8). The default. */
   english: { model: "Xenova/all-MiniLM-L6-v2", minSimilarity: 0.2 },
@@ -12,6 +17,7 @@ export const MODELS = {
   },
 } as const satisfies Record<string, { model: string } & ModelOptions>;
 
+/** @experimental Follows the `english` preset of `MODELS`. */
 export const DEFAULT_MODEL = MODELS.english.model;
 
 // Minimal shape of what we use from @huggingface/transformers, so it stays an optional dependency.
@@ -44,7 +50,11 @@ export interface TransformersEmbedderOptions extends ModelOptions {
   onProgress?: (event: { status: string; file?: string; progress?: number }) => void;
 }
 
-/** Embeds text with a sentence-embedding model through transformers.js (`@huggingface/transformers`). */
+/**
+ * Embeds text with a sentence-embedding model through transformers.js (`@huggingface/transformers`).
+ *
+ * @experimental Depends on the transformers.js API. Its options may change in a minor release.
+ */
 export function transformersEmbedder(options: TransformersEmbedderOptions = {}): Embedder {
   const preset = MODELS[(options.model ?? "english") as keyof typeof MODELS] as
     | ({ model: string } & ModelOptions)

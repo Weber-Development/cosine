@@ -11,12 +11,21 @@
         "guides/models",
         "guides/web-component",
         "guides/react",
-        "guides/privacy"
+        "guides/privacy",
+        "guides/recipes",
+        "guides/migrating",
+        "guides/troubleshooting"
       ]
     },
     {
       "label": "Reference",
-      "items": ["reference/cli", "reference/api"]
+      "items": [
+        "reference/cli",
+        "reference/api",
+        "reference/stability",
+        "reference/performance",
+        "reference/upgrading"
+      ]
     },
     {
       "label": "Cosine Pro",

@@ -28,7 +28,12 @@ export interface Chunk {
 /** How a text is embedded. Some models (E5, BGE) expect different prefixes for queries and passages. */
 export type EmbedKind = "query" | "passage";
 
-/** Turns text into vectors. The index and the browser must use the same model. */
+/**
+ * Turns text into vectors. The index and the browser must use the same model.
+ *
+ * @experimental Custom embedders work today, but the interface may get new optional members in a
+ * minor release.
+ */
 export interface Embedder {
   /** Model id stored in the index, e.g. `Xenova/all-MiniLM-L6-v2`. */
   readonly model: string;

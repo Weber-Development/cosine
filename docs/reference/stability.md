@@ -3,7 +3,7 @@ title: Stability
 description: What the 1.x versions of Cosine promise, what is frozen, what is experimental and how a test enforces it.
 ---
 
-From 1.0 on, Cosine follows [semantic versioning](https://semver.org). Version 0.9 is the API freeze candidate: it has the surface that 1.0 will keep.
+From 1.0 on, Cosine follows [semantic versioning](https://semver.org). Version 1.0 keeps the surface that 0.9 froze.
 
 ## The promise for 1.x
 
@@ -53,7 +53,7 @@ Everything below keeps its name, its signature and its documented behaviour in 1
 
 These parts work and are tested, but they may change in a minor release. They are marked `@experimental` in the type definitions.
 
-- **The `Embedder` interface** for custom models. It may get new optional members. A custom embedder written for 0.9 keeps working.
+- **The `Embedder` interface** for custom models. It may get new optional members. A custom embedder written for 1.0 keeps working.
 - **`transformersEmbedder`, `MODELS` and `DEFAULT_MODEL`.** They depend on the transformers.js API. The preset keys `english` and `multilingual` stay.
 - **Chunking rules.** How a page is split into sections (heading levels, `--max-chars`, what is dropped from MDX and HTML) can improve in a minor release. Section ids and anchors may change as a result, so rebuild the index when you upgrade.
 

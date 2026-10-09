@@ -116,6 +116,14 @@ jobs:
 
 `COSINE_PRO_TOKEN` is the read-only token from the [install guide](overview.md). The workflow needs your built index in `public/cosine`; if you build it in CI instead, add that step before the report. Without a server log, point `SEARCH_LOG_URL` at wherever your handler's store writes.
 
+## 7. One page with everything
+
+```sh
+npx cosine-insights dashboard --log data/searches.ndjson --index public/cosine --out dashboard.html
+```
+
+The dashboard is a single HTML file with no external requests: overview numbers, the gaps with suggested fixes, weekly trends, the most searched content and CSV downloads for each table. Open it locally or put it behind your login. `--semantic` also uses the embedding model for the fix suggestions.
+
 ## Privacy
 
 - Events go to your own server, never to us or a third party.

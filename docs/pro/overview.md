@@ -11,6 +11,7 @@ Cosine Pro adds what you need once search runs on more than one site: the index 
 | [`@weber-development/cosine-next`](next.md) | Builds the index from the pages `next build` has prerendered and keeps the last index in `.next/cache`, so CI rebuilds embed only what changed |
 | [`@weber-development/cosine-migrate`](migrate.md) | Turns an Algolia DocSearch export and its synonyms into a Cosine index |
 | [`@weber-development/cosine-insights`](insights.md) | Records searches without tracking people and reports queries without results, results nobody opened, the most searched topics and how they change from period to period |
+| [`@weber-development/cosine-answers`](answers.md) | Quotes the sentence that answers the question above the results, with a link to the page, without an LLM |
 
 ## Licence and plans
 

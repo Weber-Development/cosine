@@ -55,6 +55,36 @@
         "default": "./dist/element-define.cjs"
       }
     },
+    "./docusaurus": {
+      "import": {
+        "types": "./dist/docusaurus.d.ts",
+        "default": "./dist/docusaurus.js"
+      },
+      "require": {
+        "types": "./dist/docusaurus.d.cts",
+        "default": "./dist/docusaurus.cjs"
+      }
+    },
+    "./astro": {
+      "import": {
+        "types": "./dist/astro.d.ts",
+        "default": "./dist/astro.js"
+      },
+      "require": {
+        "types": "./dist/astro.d.cts",
+        "default": "./dist/astro.cjs"
+      }
+    },
+    "./vitepress": {
+      "import": {
+        "types": "./dist/vitepress.d.ts",
+        "default": "./dist/vitepress.js"
+      },
+      "require": {
+        "types": "./dist/vitepress.d.cts",
+        "default": "./dist/vitepress.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "files": [

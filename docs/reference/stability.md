@@ -3,9 +3,9 @@ title: Stability
 description: What the 1.x versions of Cosine promise, what is frozen, what is experimental and how a test enforces it.
 ---
 
-From 1.0 on, Cosine follows [semantic versioning](https://semver.org). Version 1.0 keeps the surface that 0.9 froze.
+From 1.0 on, Cosine follows [semantic versioning](https://semver.org). Version 2.0 is the second major release: it changes the index format and removes what 1.x had marked for removal. See [Migrating to 2.0](migrating-to-2.md).
 
-## The promise for 1.x
+## The promise for 2.x
 
 - **Patch releases (1.0.x)** fix bugs. They do not change documented behaviour.
 - **Minor releases (1.x.0)** may add exports, options, attributes, parts and events, and optional fields to the index. They do not remove or rename anything in the frozen list below.
@@ -46,16 +46,18 @@ Everything below keeps its name, its signature and its documented behaviour in 1
 
 ### Index format
 
-- `cosine-index.json` with `version: 1`. 1.x reads and writes version 1 only. New fields are always optional, so older code ignores them. A new required field would be a new version, and that needs a major release.
+- `cosine-index.json` with `version: 2`. 2.x writes version 2 and reads versions 1 and 2 (version 1 prints one warning). New fields are always optional, so older code ignores them. A new required field would be a new version, and that needs a major release.
+- The root manifest of a sharded index (`shards`) and the shard files it lists.
 - The vector file next to the manifest, named in `manifest.vectors`.
 
 ## Experimental
 
 These parts work and are tested, but they may change in a minor release. They are marked `@experimental` in the type definitions.
 
-- **The `Embedder` interface** for custom models. It may get new optional members. A custom embedder written for 1.0 keeps working.
-- **`transformersEmbedder`, `MODELS` and `DEFAULT_MODEL`.** They depend on the transformers.js API. The preset keys `english` and `multilingual` stay.
+- **The model presets in `MODELS`.** The model ids behind the keys can change in a minor release, because they follow what runs well in transformers.js. The keys `english` and `multilingual` stay.
 - **Chunking rules.** How a page is split into sections (heading levels, `--max-chars`, what is dropped from MDX and HTML) can improve in a minor release. Section ids and anchors may change as a result, so rebuild the index when you upgrade.
+
+`Embedder`, `transformersEmbedder` and `DEFAULT_MODEL` are stable from 2.0: the `Embedder` interface may get new optional members, and a custom embedder written for 2.0 keeps working.
 
 The helpers that `@sweberdev/cosine` also exports (`chunkMarkdown`, `htmlToMarkdown`, `parseFrontMatter`, `slugify`, `tokenize`, `normalize`, `makeSnippet`, `fuse`, `LexicalIndex`, `VectorStore` and similar) exist so you can build your own UI or pipeline. Their names are frozen too, but their exact output follows the experimental rules above where it depends on chunking or tokenizing.
 
@@ -67,7 +69,7 @@ When something has to go:
 2. It keeps working for the whole minor series that follows, and for the rest of the 1.x line unless it has a security problem.
 3. It is removed in the next major release, and the [upgrade notes](upgrading.md) say what to do.
 
-Nothing is deprecated today.
+Nothing is deprecated today. Index format 1 is read with a warning in 2.x and is removed in 3.0.
 
 ## How a test enforces it
 

@@ -1,5 +1,6 @@
 import { transformersEmbedder } from "./embedder";
 import { LexicalIndex, parseQuery } from "./lexical";
+import { loadManifestParts } from "./manifest";
 import { makeSnippet } from "./snippet";
 import type {
   Chunk,
@@ -9,7 +10,7 @@ import type {
   SearchResult,
   SearchStatus,
 } from "./types";
-import { VectorStore } from "./vectors";
+import type { VectorStore } from "./vectors";
 
 export interface Facet {
   /** Path prefix, e.g. `/docs/api`. Pass it as `scope` to search only there. */
@@ -334,18 +335,22 @@ export async function loadIndex(
   options: LoadIndexOptions = {},
 ): Promise<Cosine> {
   const doFetch = options.fetch ?? fetch;
-  const res = await doFetch(String(url));
-  if (!res.ok) throw new Error(`cosine: could not load ${String(url)} (${res.status})`);
-  const manifest = (await res.json()) as IndexManifest;
-  if (manifest.version !== 1)
-    throw new Error(`cosine: unsupported index version ${String(manifest.version)}`);
-  let vectors: VectorStore | null = null;
-  if (manifest.vectors && options.embedder !== false && options.loadModel !== "never") {
-    const vectorUrl = siblingUrl(String(url), manifest.vectors);
-    const vres = await doFetch(vectorUrl);
-    if (!vres.ok) throw new Error(`cosine: could not load ${vectorUrl} (${vres.status})`);
-    vectors = VectorStore.fromBuffer(await vres.arrayBuffer());
-  }
+  const root = String(url);
+  const get = async (file: string) => {
+    const target = file === root ? root : siblingUrl(root, file);
+    const res = await doFetch(target);
+    if (!res.ok) throw new Error(`cosine: could not load ${target} (${res.status})`);
+    return res;
+  };
+  const withVectors = options.embedder !== false && options.loadModel !== "never";
+  const { manifest, vectors } = await loadManifestParts(
+    {
+      json: async (file) => (await get(file)).json() as Promise<unknown>,
+      binary: async (file) => (await get(file)).arrayBuffer(),
+    },
+    root,
+    withVectors,
+  );
   return new Cosine({ ...options, manifest, vectors });
 }
 

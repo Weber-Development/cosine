@@ -5,11 +5,11 @@ import * as element from "../src/element";
 import * as core from "../src/index";
 import * as node from "../src/node";
 
-// The public API of 1.x. Adding a name is a minor change and means adding it here on purpose.
+// The public API of 2.x. Adding a name is a minor change and means adding it here on purpose.
 // Removing or renaming a name is a breaking change: do not edit these lists to make a test pass.
 // See docs/reference/stability.md.
 
-describe("API surface (frozen for 1.x)", () => {
+describe("API surface (frozen for 2.x)", () => {
   it("@sweberdev/cosine exports exactly these runtime names", () => {
     expect(Object.keys(core).sort()).toEqual([
       "Cosine",
@@ -27,20 +27,25 @@ describe("API surface (frozen for 1.x)", () => {
       "fuse",
       "highlightParts",
       "htmlToMarkdown",
+      "indexFiles",
       "loadIndex",
       "loadIndexes",
+      "loadManifestParts",
       "makeSnippet",
       "normalize",
       "normalizeVector",
       "parseFrontMatter",
+      "parseManifest",
       "parseQuery",
       "passageText",
       "scopeFilter",
+      "serializeManifest",
       "siblingUrl",
       "slugify",
       "textsFor",
       "tokenize",
       "transformersEmbedder",
+      "wordSpans",
     ]);
   });
 
@@ -114,6 +119,8 @@ describe("API surface (frozen for 1.x)", () => {
       "--synonyms <file>",
       "--boost <path=n>",
       "--incremental",
+      "--shard-size",
+      "--vector-bits",
       "--mode <mode>",
       "--limit <n>",
     ]) {

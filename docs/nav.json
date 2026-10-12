@@ -24,7 +24,8 @@
         "reference/api",
         "reference/stability",
         "reference/performance",
-        "reference/upgrading"
+        "reference/upgrading",
+        "reference/migrating-to-2"
       ]
     },
     {

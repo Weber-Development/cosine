@@ -20,6 +20,8 @@ Build options:
   --synonyms <file>    JSON file with synonym groups, e.g. [["login", "sign-in"]]
   --boost <path=n>     Rank results below a path higher (n > 1) or lower (n < 1), repeatable,
                        e.g. --boost /docs/api=1.5 --boost /blog=0.7
+  --shard-size <n>     Split the index into files of about n sections, loaded in parallel
+  --vector-bits <n>    4 or 8 (default): 4 halves the vector file at a small cost in ranking quality
   --incremental        Reuse the vectors of the index in --out, embed only changed sections
 
 Search options:
@@ -72,6 +74,8 @@ export async function run(
       "passage-prefix": { type: "string" },
       synonyms: { type: "string" },
       incremental: { type: "boolean" },
+      "shard-size": { type: "string" },
+      "vector-bits": { type: "string" },
       boost: { type: "string", multiple: true },
       mode: { type: "string" },
       limit: { type: "string" },
@@ -120,6 +124,16 @@ export async function run(
       log(`cosine build: ${(error as Error).message}`);
       return 1;
     }
+    const vectorBits = values["vector-bits"];
+    if (vectorBits !== undefined && vectorBits !== "4" && vectorBits !== "8") {
+      log("cosine build: --vector-bits must be 4 or 8");
+      return 1;
+    }
+    const shardSize = values["shard-size"] === undefined ? 0 : Number(values["shard-size"]);
+    if (!Number.isInteger(shardSize) || shardSize < 0) {
+      log("cosine build: --shard-size needs a whole number of sections");
+      return 1;
+    }
     const previous = values.incremental && embedder ? await readIndex(out) : null;
     const started = Date.now();
     const { index, files } = await buildDirectory(dir, out, {
@@ -127,6 +141,8 @@ export async function run(
       ...(synonyms && { synonyms }),
       ...(boost && { boost }),
       ...(previous && { previous }),
+      ...(vectorBits === "4" && { vectorBits: 4 as const }),
+      ...(shardSize > 0 && { shardSize }),
       baseUrl: values["base-url"] ?? "/",
       ...(values.exclude && { exclude: values.exclude }),
       ...(values["max-chars"] && { maxChars: Number(values["max-chars"]) }),

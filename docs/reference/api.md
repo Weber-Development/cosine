@@ -57,7 +57,7 @@ interface SearchResult {
 | `chunkMarkdown(document, options)` | Splits one Markdown page into chunks |
 | `htmlToMarkdown(html)` | Extracts the main content of an HTML page |
 
-From `@sweberdev/cosine/node`: `readDocs(dir, options)`, `writeIndex(index, outDir)`, `buildDirectory(dir, outDir, options)`, `readIndex(dir)` (the last build, for `previous`), `loadIndexFile(path, options)`.
+From `@sweberdev/cosine/node`: `readDocs(dir, options)`, `writeIndex(index, outDir, { shardSize })`, `buildDirectory(dir, outDir, options)`, `readIndex(dir)` (the last build, for `previous`), `loadIndexFile(path, options)`.
 
 ## Custom embedder
 
@@ -69,3 +69,7 @@ interface Embedder {
   embed(texts: string[], kind: "query" | "passage"): Promise<Float32Array[]>;
 }
 ```
+
+## Reading and writing the index yourself
+
+`parseManifest(json)` turns the content of a `cosine-index.json` (format 1 or 2) into a manifest with all sections. `serializeManifest(manifest)` writes the compact format 2. `indexFiles(builtIndex, { shardSize })` returns the files of an index as `{ name, data }` (the manifest, the vector files and, with `shardSize`, the shards), for build tools that emit files themselves. See [Migrating to 2.0](migrating-to-2.md).

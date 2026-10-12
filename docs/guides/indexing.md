@@ -34,6 +34,8 @@ The model sees each chunk together with its page title and heading path, e.g. `B
 | `--boost <path=n>` | | Rank results below a path higher (n above 1) or lower (below 1), repeatable, e.g. `--boost /docs/api=1.5 --boost /blog=0.7` |
 | `--synonyms <file>` | | JSON file with synonym groups, see [Synonyms](#synonyms) |
 | `--incremental` | | Reuse the vectors of the index in `--out`, embed only new and changed sections |
+| `--shard-size <n>` | | Split the index into files of about n sections (whole pages stay together). The browser loads them in parallel and unchanged shards stay cached, see [Large sites](#large-sites) |
+| `--vector-bits <n>` | `8` | `4` halves the vector file at a small cost in ranking quality |
 
 ## Synonyms
 
@@ -72,6 +74,19 @@ npx cosine build docs --out public/cosine --incremental
 ```
 
 Keep the output directory between CI runs (cache it like the model) to profit in CI too.
+
+## Large sites
+
+With thousands of pages `cosine-index.json` gets large. Two options keep it manageable:
+
+```sh
+cosine build docs --shard-size 2000 --vector-bits 4
+```
+
+- `--shard-size 2000` writes `cosine-shard-0.json`, `cosine-shard-1.json` and so on, plus a small `cosine-index.json` that lists them. The browser loads the files in parallel, and the result ranks exactly like one file. Unchanged shards keep their file name and content between builds when the pages before them did not change, so a CDN or the browser cache serves them again. Use it when a single file gets too big for your host or cache.
+- `--vector-bits 4` stores each vector value in 4 bits. The vector file is half the size, and in our tests the top ten of a query overlap in at least seven results with the 8-bit file. Check your own queries with a golden-queries test before you switch.
+
+Format 2 also stores each page title and URL once instead of once per section, which made the index of these docs 15 percent smaller than format 1. The saving grows with many short sections.
 
 ## In CI
 

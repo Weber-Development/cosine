@@ -3,12 +3,13 @@ title: Upgrading
 description: What changed in each version from 0.1 to 1.0 and what you need to do.
 ---
 
-**1.0 is a drop-in upgrade from 0.9.** It changes nothing in the API or the behaviour: 1.0 is the 0.9 surface, now under semantic versioning. See [Stability](stability.md) for what 1.x promises.
+**2.0 is a major release.** It needs Node 22, writes index format 2 and changes how scripts without spaces are split. Read [Migrating to 2.0](migrating-to-2.md); most sites only update and rebuild. See [Stability](stability.md) for what 2.x promises.
 
 Every version before it was also additive, with one exception: 0.8 changed the markup of the results list (see below). `@sweberdev/cosine` and `@sweberdev/cosine-react` are released together with the same version number. Index files stay at format version 1 throughout, but an index built with an older version lacks newer features, such as synonyms or boost weights, until you rebuild it.
 
 | Version | What is new | What to do |
 |---|---|---|
+| 2.0 | Index format 2, shards, 4-bit vectors, Node 22, words for Chinese, Japanese and Thai, build integrations | Update, rebuild, see [Migrating to 2.0](migrating-to-2.md) |
 | 1.0 | The API of 0.9, now stable and under semantic versioning | Nothing |
 | 0.9 | API freeze candidate, guides, `@experimental` tags | Nothing |
 | 0.8 | Each result in `<cosine-search>` is now an `<a role="option">` instead of a link inside an `<li role="option">`. Browser tests with axe. Benchmarks in CI | If you style the results with `::part(result)`, check the list once: the part now styles the link element. `result-title` and `result-snippet` are unchanged |
@@ -28,6 +29,10 @@ npx cosine build docs --out public/cosine --base-url /docs
 ```
 
 Rebuild the index with the new version so that it contains the newest fields. The old index keeps working if you skip this.
+
+## To 2.0
+
+See [Migrating to 2.0](migrating-to-2.md).
 
 ## To 1.0
 

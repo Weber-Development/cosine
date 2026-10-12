@@ -46,3 +46,11 @@ You get `null` when confidence is below `minConfidence`, when fewer than half of
 The answer is extractive: it quotes your docs and never rewrites them. If no page states the answer in one or two sentences, there is none. Only the top three results are read.
 
 `renderAnswer` escapes all text and only links relative, `http` and `https` URLs. Style it with `.cosine-answer`, `.cosine-answer-text` and `.cosine-answer-link`.
+
+## Languages
+
+The question and the sentences are compared after a light stemmer folds plurals and common endings, so "settings" matches "setting". Set the language of your docs with `lang`: `en`, `de`, `fr`, `es`, `it`, `nl` or `pt`. The default `auto` picks the language by counting common words in the question and in the top results, and falls back to English.
+
+```ts
+attachAnswer(searchElement, answerElement, { lang: "de" });
+```

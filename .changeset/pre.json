@@ -5,5 +5,7 @@
     "@sweberdev/cosine": "1.0.0",
     "@sweberdev/cosine-react": "1.0.0"
   },
-  "changesets": []
+  "changesets": [
+    "two-oh"
+  ]
 }

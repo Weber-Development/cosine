@@ -1,6 +1,4 @@
-import { normalize, tokenize } from "./tokenize";
-
-const WORD = /[\p{L}\p{N}]+/gu;
+import { normalize, tokenize, wordSpans } from "./tokenize";
 
 function matches(word: string, terms: string[]): boolean {
   const w = normalize(word);
@@ -17,11 +15,7 @@ export function makeSnippet(
   length = 180,
 ): { snippet: string; highlights: Array<[number, number]> } {
   const terms = [...new Set(tokenize(query))];
-  const words = [...text.matchAll(WORD)].map((m) => ({
-    start: m.index,
-    end: m.index + m[0].length,
-    word: m[0],
-  }));
+  const words = wordSpans(text);
   const hits = terms.length ? words.filter((w) => matches(w.word, terms)) : [];
 
   let start = 0;
@@ -54,9 +48,8 @@ export function makeSnippet(
 
   const highlights: Array<[number, number]> = [];
   if (terms.length) {
-    for (const m of body.matchAll(WORD)) {
-      if (matches(m[0], terms))
-        highlights.push([prefix.length + m.index, prefix.length + m.index + m[0].length]);
+    for (const w of wordSpans(body)) {
+      if (matches(w.word, terms)) highlights.push([prefix.length + w.start, prefix.length + w.end]);
     }
   }
   return { snippet, highlights };

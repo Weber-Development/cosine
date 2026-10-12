@@ -8,6 +8,8 @@ export interface BuildOptions extends ChunkOptions {
   embedder?: Embedder | null;
   /** File name of the vectors. Default `cosine-vectors.bin`. */
   vectorsFile?: string;
+  /** Bits per vector value: 8 (default) or 4, which halves the vector file. */
+  vectorBits?: 8 | 4;
   /** Called after each embedding batch, for progress output. */
   onProgress?: (done: number, total: number) => void;
   /** Groups of words that mean the same, stored in the index, e.g. `[["login", "sign-in"]]`. */
@@ -25,6 +27,8 @@ export interface BuiltIndex {
   manifest: IndexManifest;
   /** Binary vector file, or `null` for a lexical-only index. */
   vectors: Uint8Array | null;
+  /** The vectors as a store, for splitting the index into shards. */
+  store?: VectorStore | null;
   /** Sections that kept their vectors from `previous`. */
   reused: number;
   /** Sections that were embedded in this build. */
@@ -46,13 +50,14 @@ export async function buildIndex(
 
   const embedder = options.embedder ?? null;
   let vectors: Uint8Array | null = null;
+  let store: VectorStore | null = null;
   let dimensions = 0;
   let reused = 0;
   let embedded = 0;
   if (embedder && chunks.length) {
     const texts = chunks.map(passageText);
     const all: Array<Float32Array | undefined> = new Array(texts.length);
-    const known = reusableVectors(options.previous, embedder);
+    const known = reusableVectors(options.previous, embedder, options.vectorBits === 4 ? 4 : 8);
     const missing: number[] = [];
     texts.forEach((text, i) => {
       const vector = known.get(text);
@@ -73,13 +78,15 @@ export async function buildIndex(
       options.onProgress?.(Math.min(i + step, missing.length), missing.length);
     }
     embedded = missing.length;
-    const store = VectorStore.fromVectors(all as Float32Array[]);
+    store = VectorStore.fromVectors(all as Float32Array[], {
+      bits: options.vectorBits === 4 ? 4 : 8,
+    });
     dimensions = store.dimensions;
     vectors = store.toBuffer();
   }
 
   const manifest: IndexManifest = {
-    version: 1,
+    version: 2,
     model: vectors && embedder ? embedder.model : null,
     dimensions,
     vectors: vectors ? (options.vectorsFile ?? "cosine-vectors.bin") : null,
@@ -91,13 +98,14 @@ export async function buildIndex(
   const synonyms = options.synonyms?.filter((group) => group.length > 1);
   if (synonyms?.length) manifest.synonyms = synonyms;
   if (options.boost && Object.keys(options.boost).length) manifest.boost = options.boost;
-  return { manifest, vectors, reused, embedded };
+  return { manifest, vectors, store, reused, embedded };
 }
 
 /** Vectors of the previous build by passage text, when they come from the same model setup. */
 function reusableVectors(
   previous: BuildOptions["previous"],
   embedder: Embedder,
+  bits: 8 | 4,
 ): Map<string, Float32Array> {
   const out = new Map<string, Float32Array>();
   if (!previous?.vectors || previous.manifest.model !== embedder.model) return out;
@@ -106,6 +114,7 @@ function reusableVectors(
   if (
     before.passagePrefix !== now.passagePrefix ||
     (before.dtype ?? "q8") !== (now.dtype ?? "q8") ||
+    previous.vectors.bits !== bits ||
     previous.vectors.count !== previous.manifest.chunks.length
   ) {
     return out;

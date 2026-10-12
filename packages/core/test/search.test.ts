@@ -321,7 +321,7 @@ describe("files", () => {
     ).toBe(0);
     expect(lines[0]).toMatch(/Indexed 3 pages as \d+ chunks .*\(lexical only\)/);
     const manifest = JSON.parse(await readFile(join(out, "cosine-index.json"), "utf8"));
-    expect(manifest).toMatchObject({ version: 1, model: null, vectors: null });
+    expect(manifest).toMatchObject({ version: 2, model: null, vectors: null });
 
     lines.length = 0;
     expect(await run(["search", out, "invoices", "--mode", "lexical"], log)).toBe(0);

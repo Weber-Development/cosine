@@ -1,10 +1,16 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, extname, join, relative, sep } from "node:path";
+import { basename, dirname, extname, join, relative, sep } from "node:path";
 import { type BuildOptions, type BuiltIndex, buildIndex } from "./build";
 import { htmlToMarkdown } from "./chunk";
+import {
+  loadManifestParts,
+  type ShardRef,
+  serializeManifest,
+  serializeShardRoot,
+} from "./manifest";
 import { Cosine, type CosineOptions } from "./search";
 import type { IndexManifest, SourceDocument } from "./types";
-import { VectorStore } from "./vectors";
+import type { VectorStore } from "./vectors";
 
 export type { BuildOptions, BuiltIndex } from "./build";
 export { buildIndex, passageText } from "./build";
@@ -79,18 +85,74 @@ export async function readDocs(
   return docs;
 }
 
+export interface WriteIndexOptions {
+  /**
+   * Split the index into files of about this many sections (whole pages stay together). The
+   * browser loads the shards in parallel and unchanged shards stay cached between builds.
+   * Default: one file.
+   */
+  shardSize?: number;
+}
+
 /** Writes `cosine-index.json` (and the vector file) to `outDir`. Returns the written paths. */
-export async function writeIndex(index: BuiltIndex, outDir: string): Promise<string[]> {
+export async function writeIndex(
+  index: BuiltIndex,
+  outDir: string,
+  options: WriteIndexOptions = {},
+): Promise<string[]> {
   await mkdir(outDir, { recursive: true });
   const written: string[] = [];
   const manifestPath = join(outDir, "cosine-index.json");
-  await writeFile(manifestPath, JSON.stringify(index.manifest));
-  written.push(manifestPath);
-  if (index.vectors && index.manifest.vectors) {
-    const vectorPath = join(outDir, index.manifest.vectors);
-    await writeFile(vectorPath, index.vectors);
-    written.push(vectorPath);
+  const size = options.shardSize && options.shardSize > 0 ? Math.floor(options.shardSize) : 0;
+  const { manifest } = index;
+  if (!size || manifest.chunks.length <= size) {
+    await writeFile(manifestPath, serializeManifest(manifest));
+    written.push(manifestPath);
+    if (index.vectors && manifest.vectors) {
+      const vectorPath = join(outDir, manifest.vectors);
+      await writeFile(vectorPath, index.vectors);
+      written.push(vectorPath);
+    }
+    return written;
   }
+
+  // Group whole pages into shards, so a page is never split across files.
+  const groups: Array<{ from: number; to: number }> = [];
+  let from = 0;
+  const chunks = manifest.chunks;
+  for (let i = 1; i <= chunks.length; i++) {
+    const pageEnds = i === chunks.length || chunks[i]?.doc !== chunks[i - 1]?.doc;
+    if (pageEnds && (i - from >= size || i === chunks.length)) {
+      groups.push({ from, to: i });
+      from = i;
+    }
+  }
+  const refs: ShardRef[] = [];
+  const vectorBase = (manifest.vectors ?? "cosine-vectors.bin").replace(/\.bin$/, "");
+  for (const [n, group] of groups.entries()) {
+    const file = `cosine-shard-${n}.json`;
+    const hasVectors = Boolean(index.store && manifest.vectors);
+    // Settings and the build time live in the root, so an unchanged shard is byte-identical.
+    const { synonyms: _s, boost: _b, ...base } = manifest;
+    const shard = {
+      ...base,
+      createdAt: "",
+      vectors: hasVectors ? `${vectorBase}-${n}.bin` : null,
+      chunks: chunks.slice(group.from, group.to),
+    };
+    await writeFile(join(outDir, file), serializeManifest(shard));
+    written.push(join(outDir, file));
+    if (hasVectors && shard.vectors && index.store) {
+      await writeFile(
+        join(outDir, shard.vectors),
+        index.store.slice(group.from, group.to).toBuffer(),
+      );
+      written.push(join(outDir, shard.vectors));
+    }
+    refs.push({ file, chunks: group.to - group.from });
+  }
+  await writeFile(manifestPath, serializeShardRoot(manifest, refs));
+  written.unshift(manifestPath);
   return written;
 }
 
@@ -98,11 +160,28 @@ export async function writeIndex(index: BuiltIndex, outDir: string): Promise<str
 export async function buildDirectory(
   dir: string,
   outDir: string,
-  options: BuildOptions & ReadDocsOptions = {},
+  options: BuildOptions & ReadDocsOptions & WriteIndexOptions = {},
 ): Promise<{ index: BuiltIndex; files: string[] }> {
   const docs = await readDocs(dir, options);
   const index = await buildIndex(docs, options);
-  return { index, files: await writeIndex(index, outDir) };
+  return {
+    index,
+    files: await writeIndex(
+      index,
+      outDir,
+      options.shardSize ? { shardSize: options.shardSize } : {},
+    ),
+  };
+}
+
+function diskIO(dir: string) {
+  return {
+    json: async (file: string) => JSON.parse(await readFile(join(dir, file), "utf8")) as unknown,
+    binary: async (file: string) => {
+      const buf = await readFile(join(dir, file));
+      return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+    },
+  };
 }
 
 /**
@@ -113,18 +192,7 @@ export async function readIndex(
   dir: string,
 ): Promise<{ manifest: IndexManifest; vectors: VectorStore | null } | null> {
   try {
-    const manifest = JSON.parse(
-      await readFile(join(dir, "cosine-index.json"), "utf8"),
-    ) as IndexManifest;
-    if (manifest.version !== 1 || !Array.isArray(manifest.chunks)) return null;
-    let vectors: VectorStore | null = null;
-    if (manifest.vectors) {
-      const buf = await readFile(join(dir, manifest.vectors));
-      vectors = VectorStore.fromBuffer(
-        buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer,
-      );
-    }
-    return { manifest, vectors };
+    return await loadManifestParts(diskIO(dir), "cosine-index.json", true);
   } catch {
     return null;
   }
@@ -135,13 +203,11 @@ export async function loadIndexFile(
   path: string,
   options: Omit<CosineOptions, "manifest" | "vectors"> = {},
 ): Promise<Cosine> {
-  const manifest = JSON.parse(await readFile(path, "utf8")) as IndexManifest;
-  let vectors: VectorStore | null = null;
-  if (manifest.vectors && options.embedder !== false && options.loadModel !== "never") {
-    const buf = await readFile(join(dirname(path), manifest.vectors));
-    vectors = VectorStore.fromBuffer(
-      buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer,
-    );
-  }
+  const withVectors = options.embedder !== false && options.loadModel !== "never";
+  const { manifest, vectors } = await loadManifestParts(
+    diskIO(dirname(path)),
+    basename(path),
+    withVectors,
+  );
   return new Cosine({ ...options, manifest, vectors });
 }

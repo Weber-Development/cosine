@@ -44,8 +44,8 @@ export interface Embedder {
 
 /** Index metadata written to `cosine-index.json`. */
 export interface IndexManifest {
-  /** Format version of the index files. */
-  version: 1;
+  /** Format version of the index files. New builds write 2; 1 is still read, with a warning. */
+  version: 1 | 2;
   /** Embedding model, or `null` for a lexical-only index. */
   model: string | null;
   /** Options the browser needs to load the same model. */

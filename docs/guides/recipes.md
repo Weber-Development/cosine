@@ -47,13 +47,15 @@ Install `@sweberdev/cosine-react` as well, see [React](react.md). For sites that
 
 ## Astro
 
-```json title="package.json"
-{
-  "scripts": {
-    "build": "astro build && cosine build dist --out dist/cosine"
-  }
-}
+Starlight sites work the same way. Add the integration. It indexes `dist` after `astro build`:
+
+```js title="astro.config.mjs"
+import cosine from "@sweberdev/cosine/astro";
+
+export default defineConfig({ integrations: [cosine({ model: "english" })] });
 ```
+
+The index lands in `dist/cosine/`. Without the integration, run `cosine build dist --out dist/cosine` after the build.
 
 ```astro title="src/components/Search.astro"
 <cosine-search index="/cosine/cosine-index.json"></cosine-search>
@@ -67,15 +69,15 @@ The Pro plugin [`cosine-vite`](../pro/vite.md) builds the index inside the Astro
 
 ## VitePress
 
-Index the Markdown sources. Folders that start with a dot, such as `.vitepress`, are skipped. Set `cleanUrls: true` in the VitePress config, so the page URLs match.
+Set `cleanUrls: true` in the VitePress config, so the page URLs match.
 
-```json title="package.json"
-{
-  "scripts": {
-    "docs:build": "cosine build docs --out docs/public/cosine && vitepress build docs"
-  }
-}
+```js title="docs/.vitepress/config.mjs"
+import { cosineBuildEnd } from "@sweberdev/cosine/vitepress";
+
+export default defineConfig({ cleanUrls: true, buildEnd: cosineBuildEnd() });
 ```
+
+`cosineBuildEnd` indexes the built HTML in `.vitepress/dist/cosine/` and uses the site's `base`. To index the Markdown sources instead, run `cosine build docs --out docs/public/cosine` before `vitepress build docs`.
 
 ```ts title="docs/.vitepress/theme/index.ts"
 import DefaultTheme from "vitepress/theme";
@@ -98,13 +100,13 @@ If the site has a `base`, build with `--base-url /base/` and use `/base/cosine/c
 
 ## Docusaurus
 
-```json title="package.json"
-{
-  "scripts": {
-    "build": "docusaurus build && cosine build build --out build/cosine"
-  }
-}
+Add the plugin. It indexes the built site after `docusaurus build`:
+
+```js title="docusaurus.config.js"
+plugins: [["@sweberdev/cosine/docusaurus", { model: "english" }]],
 ```
+
+The index lands in `build/cosine/`. Without the plugin, run `cosine build build --out build/cosine` after the build.
 
 Swizzle the search bar and render the element on the client only:
 

@@ -53,5 +53,6 @@ export default defineConfig({ vite: { plugins: [cosine({ docs: ".", baseUrl: "/"
 | `cacheFile` | `node_modules/.cache/cosine/embeddings.json` | Embedding cache, or `false` |
 | `exclude` | | Paths below `docs` to skip |
 | `maxChars`, `code`, `minLevel`, `maxLevel` | | Chunking, as in [Building the index](../guides/indexing.md) |
+| `shardSize`, `vectorBits` | | Split the index into shards of about this many sections, and 4-bit vectors, see [Large sites](../guides/indexing.md#large-sites) |
 
 `cachedEmbedder(embedder, file)` is exported too, for your own build scripts.

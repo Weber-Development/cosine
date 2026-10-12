@@ -1,3 +1,4 @@
+import type { BuiltIndex } from "./build";
 import type { Chunk, IndexManifest } from "./types";
 import { VectorStore } from "./vectors";
 
@@ -145,4 +146,60 @@ async function loadOne(io: IndexIO, stored: StoredManifest, withVectors: boolean
       ? VectorStore.fromBuffer(await io.binary(manifest.vectors))
       : null;
   return { manifest, vectors };
+}
+
+/** A file of an index, named relative to the folder the index is served from. */
+export interface IndexFile {
+  name: string;
+  data: string | Uint8Array;
+}
+
+/**
+ * The files of a built index: `cosine-index.json` first, then the vector file, or with
+ * `shardSize` a root manifest, shard manifests of about that many sections (whole pages stay
+ * together) and one vector file per shard. Works in Node and in build tools.
+ */
+export function indexFiles(index: BuiltIndex, options: { shardSize?: number } = {}): IndexFile[] {
+  const { manifest } = index;
+  const size = options.shardSize && options.shardSize > 0 ? Math.floor(options.shardSize) : 0;
+  if (!size || manifest.chunks.length <= size) {
+    const files: IndexFile[] = [{ name: "cosine-index.json", data: serializeManifest(manifest) }];
+    if (index.vectors && manifest.vectors)
+      files.push({ name: manifest.vectors, data: index.vectors });
+    return files;
+  }
+  const chunks = manifest.chunks;
+  const groups: Array<{ from: number; to: number }> = [];
+  let from = 0;
+  for (let i = 1; i <= chunks.length; i++) {
+    const pageEnds = i === chunks.length || chunks[i]?.doc !== chunks[i - 1]?.doc;
+    if (pageEnds && (i - from >= size || i === chunks.length)) {
+      groups.push({ from, to: i });
+      from = i;
+    }
+  }
+  const refs: ShardRef[] = [];
+  const files: IndexFile[] = [];
+  const vectorBase = (manifest.vectors ?? "cosine-vectors.bin").replace(/\.bin$/, "");
+  const hasVectors = Boolean(index.store && manifest.vectors);
+  // Settings and the build time live in the root, so an unchanged shard is byte-identical.
+  const { synonyms: _s, boost: _b, ...base } = manifest;
+  for (const [n, group] of groups.entries()) {
+    const file = `cosine-shard-${n}.json`;
+    const vectors = hasVectors ? `${vectorBase}-${n}.bin` : null;
+    files.push({
+      name: file,
+      data: serializeManifest({
+        ...base,
+        createdAt: "",
+        vectors,
+        chunks: chunks.slice(group.from, group.to),
+      }),
+    });
+    if (vectors && index.store) {
+      files.push({ name: vectors, data: index.store.slice(group.from, group.to).toBuffer() });
+    }
+    refs.push({ file, chunks: group.to - group.from });
+  }
+  return [{ name: "cosine-index.json", data: serializeShardRoot(manifest, refs) }, ...files];
 }

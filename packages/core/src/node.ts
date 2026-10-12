@@ -2,12 +2,7 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join, relative, sep } from "node:path";
 import { type BuildOptions, type BuiltIndex, buildIndex } from "./build";
 import { htmlToMarkdown } from "./chunk";
-import {
-  loadManifestParts,
-  type ShardRef,
-  serializeManifest,
-  serializeShardRoot,
-} from "./manifest";
+import { indexFiles, loadManifestParts } from "./manifest";
 import { Cosine, type CosineOptions } from "./search";
 import type { IndexManifest, SourceDocument } from "./types";
 import type { VectorStore } from "./vectors";
@@ -102,57 +97,11 @@ export async function writeIndex(
 ): Promise<string[]> {
   await mkdir(outDir, { recursive: true });
   const written: string[] = [];
-  const manifestPath = join(outDir, "cosine-index.json");
-  const size = options.shardSize && options.shardSize > 0 ? Math.floor(options.shardSize) : 0;
-  const { manifest } = index;
-  if (!size || manifest.chunks.length <= size) {
-    await writeFile(manifestPath, serializeManifest(manifest));
-    written.push(manifestPath);
-    if (index.vectors && manifest.vectors) {
-      const vectorPath = join(outDir, manifest.vectors);
-      await writeFile(vectorPath, index.vectors);
-      written.push(vectorPath);
-    }
-    return written;
+  for (const file of indexFiles(index, options)) {
+    const path = join(outDir, file.name);
+    await writeFile(path, file.data);
+    written.push(path);
   }
-
-  // Group whole pages into shards, so a page is never split across files.
-  const groups: Array<{ from: number; to: number }> = [];
-  let from = 0;
-  const chunks = manifest.chunks;
-  for (let i = 1; i <= chunks.length; i++) {
-    const pageEnds = i === chunks.length || chunks[i]?.doc !== chunks[i - 1]?.doc;
-    if (pageEnds && (i - from >= size || i === chunks.length)) {
-      groups.push({ from, to: i });
-      from = i;
-    }
-  }
-  const refs: ShardRef[] = [];
-  const vectorBase = (manifest.vectors ?? "cosine-vectors.bin").replace(/\.bin$/, "");
-  for (const [n, group] of groups.entries()) {
-    const file = `cosine-shard-${n}.json`;
-    const hasVectors = Boolean(index.store && manifest.vectors);
-    // Settings and the build time live in the root, so an unchanged shard is byte-identical.
-    const { synonyms: _s, boost: _b, ...base } = manifest;
-    const shard = {
-      ...base,
-      createdAt: "",
-      vectors: hasVectors ? `${vectorBase}-${n}.bin` : null,
-      chunks: chunks.slice(group.from, group.to),
-    };
-    await writeFile(join(outDir, file), serializeManifest(shard));
-    written.push(join(outDir, file));
-    if (hasVectors && shard.vectors && index.store) {
-      await writeFile(
-        join(outDir, shard.vectors),
-        index.store.slice(group.from, group.to).toBuffer(),
-      );
-      written.push(join(outDir, shard.vectors));
-    }
-    refs.push({ file, chunks: group.to - group.from });
-  }
-  await writeFile(manifestPath, serializeShardRoot(manifest, refs));
-  written.unshift(manifestPath);
   return written;
 }
 

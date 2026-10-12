@@ -27,6 +27,7 @@ describe("API surface (frozen for 2.x)", () => {
       "fuse",
       "highlightParts",
       "htmlToMarkdown",
+      "indexFiles",
       "loadIndex",
       "loadIndexes",
       "loadManifestParts",

@@ -12,6 +12,7 @@ Cosine Pro adds what you need once search runs on more than one site: the index 
 | [`@weber-development/cosine-migrate`](migrate.md) | Turns an Algolia DocSearch export and its synonyms into a Cosine index |
 | [`@weber-development/cosine-insights`](insights.md) | Records searches without tracking people and reports queries without results, results nobody opened, the most searched topics and how they change from period to period |
 | [`@weber-development/cosine-answers`](answers.md) | Quotes the sentence that answers the question above the results, with a link to the page, without an LLM |
+| [`@weber-development/cosine-quality`](quality.md) | Golden queries: write down which page must answer which search and let CI fail when a change makes search worse |
 
 ## Licence and plans
 

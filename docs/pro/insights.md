@@ -124,6 +124,68 @@ npx cosine-insights dashboard --log data/searches.ndjson --index public/cosine -
 
 The dashboard is a single HTML file with no external requests: overview numbers, the gaps with suggested fixes, weekly trends, the most searched content and CSV downloads for each table. Open it locally or put it behind your login. `--semantic` also uses the embedding model for the fix suggestions.
 
+## Synonym suggestions
+
+People often search for a word your docs never use: "reimbursement" where the page says "refunds". The
+search finds nothing, the visitor leaves. `cosine-insights synonyms` turns those searches into synonym
+groups you can review and feed back into the index.
+
+```sh
+npx cosine-insights synonyms \
+  --log data/searches.ndjson \
+  --index public/cosine \
+  --existing synonyms.json \
+  --out synonyms.suggested.json \
+  --md proposal.md \
+  --semantic
+```
+
+### How it decides
+
+1. It takes the queries that found nothing or that nobody clicked.
+2. A word of those queries is a candidate when it appears in no section of your index and was searched
+   at least `--min-count` times (default 2).
+3. With `--semantic`, it takes the top hit of the semantic search for the word. From the title and
+   headings of that section, the word or short phrase that is most similar to the candidate becomes the
+   other half of the group. Candidates below a similarity of 0.45 are listed as "No fit found".
+4. Without `--semantic` no groups are proposed.
+
+A word that is one or two edits from a known word is a typo, not a synonym. Typos are listed in the
+proposal in their own table and are never added to a group.
+
+### Files
+
+`--out` receives your existing groups unchanged, followed by the new ones, without duplicates. The format
+is an array of arrays, the same as `cosine build --synonyms`:
+
+```json
+[
+  ["login", "sign-in"],
+  ["refunds", "reimbursement"]
+]
+```
+
+`--md` receives the proposal: every suggested group with how often it was searched, the queries and the
+top page, then the typos and the words without a fit. Review it before you merge: a group is only right
+when both words mean the same in your docs.
+
+### Weekly pull request
+
+The package contains a ready-made GitHub Actions workflow, `examples/synonyms-pr.yml`. It runs every
+Monday, writes `synonyms.json` and opens a pull request on the branch `cosine/synonyms` with the proposal
+as its description. Only `synonyms.json` is committed. You merge it, the next build uses the groups.
+
+| Option | Meaning |
+|---|---|
+| `--log <file>` | The NDJSON log of the insights handler |
+| `--index <dir>` | The folder with `cosine-index.json` |
+| `--existing <file>` | Your `synonyms.json`; a missing file counts as empty |
+| `--out <file>` | Merged groups as JSON (default `synonyms.suggested.json`) |
+| `--md <file>` | The proposal as Markdown |
+| `--min-count <n>` | Searches a word needs (default 2) |
+| `--semantic` | Look for synonyms by meaning; needs vectors in the index and `@huggingface/transformers` |
+| `--since <date>` | Only searches from this date |
+
 ## Privacy
 
 - Events go to your own server, never to us or a third party.

@@ -37,7 +37,11 @@
         "pro/migrate",
         "pro/insights",
         "pro/answers",
-        "pro/quality"
+        "pro/quality",
+        "pro/i18n",
+        "pro/docusaurus",
+        "pro/vitepress",
+        "pro/astro"
       ]
     }
   ]

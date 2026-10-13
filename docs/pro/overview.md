@@ -1,6 +1,6 @@
 ---
 title: Cosine Pro
-description: Plugins that build the index with every build (Vite, Next.js), and search insights that show what your docs are missing.
+description: Plugins for Vite, Next.js, Docusaurus, VitePress and Astro, per-language models, and search insights that show what your docs are missing.
 ---
 
 Cosine Pro adds what you need once search runs on more than one site: the index builds itself, and you see what people look for and do not find.
@@ -13,6 +13,10 @@ Cosine Pro adds what you need once search runs on more than one site: the index 
 | [`@weber-development/cosine-insights`](insights.md) | Records searches without tracking people and reports queries without results, results nobody opened, the most searched topics and how they change from period to period |
 | [`@weber-development/cosine-answers`](answers.md) | Quotes the sentence that answers the question above the results, with a link to the page, without an LLM |
 | [`@weber-development/cosine-quality`](quality.md) | Golden queries: write down which page must answer which search and let CI fail when a change makes search worse |
+| [`@weber-development/cosine-i18n`](i18n.md) | One index per page language, each with its own model: English pages use the small model, other languages the multilingual one, and visitors download only the model of the language they read |
+| [`@weber-development/cosine-docusaurus`](docusaurus.md) | Docusaurus plugin and search bar theme: the index per locale, with cache and shards |
+| [`@weber-development/cosine-vitepress`](vitepress.md) | VitePress config wrapper and theme that puts the search field in the nav bar |
+| [`@weber-development/cosine-astro`](astro.md) | Astro integration and Starlight plugin that replaces the built-in search |
 
 ## Licence and plans
 

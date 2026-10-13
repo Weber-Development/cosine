@@ -38,7 +38,10 @@
         "pro/insights",
         "pro/answers",
         "pro/quality",
-        "pro/i18n"
+        "pro/i18n",
+        "pro/docusaurus",
+        "pro/vitepress",
+        "pro/astro"
       ]
     }
   ]

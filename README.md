@@ -42,3 +42,14 @@ COSINE_E2E=1 pnpm test   # also runs the real model (downloads about 23 MB)
 ## Licence
 
 MIT. Cosine Pro (build integrations and search insights) is a separate commercial package, see [packages.sweber.dev/cosine](https://packages.sweber.dev/cosine).
+
+<!-- pro-promo -->
+## Cosine Pro
+
+Need more than the free package? **Cosine Pro** adds:
+
+- Vite plugin: builds the index with every build, serves it in dev, re-embeds only changed sections
+- Search insights: queries without results and results nobody opened, without cookies or ids
+- Golden-query tests for CI: fail when a regression moves the right page down
+
+Subscriptions from CHF 12 per month, or a one-time lifetime licence. [See what is included](https://packages.sweber.dev/cosine?utm_source=npm&utm_medium=readme&utm_campaign=pro)
